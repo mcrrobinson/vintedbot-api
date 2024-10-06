@@ -10,8 +10,8 @@ const app = express();
 const PORT = process.env.PORT || 443;
 const HOST = process.env.HOST || '0.0.0.0';
 
-const certsPath = './src';
-// const certsPath = '/etc/letsencrypt/live/lemontree.zapto.org';
+// const certsPath = './src';
+const certsPath = '/etc/letsencrypt/live/lemonss.zapto.org';
 const privKeyPath = `${certsPath}/privkey.pem`;
 const certPath = `${certsPath}/cert.pem`;
 

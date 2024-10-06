@@ -1,5 +1,4 @@
 {
-    "taskDefinitionArn": "arn:aws:ecs:eu-west-2:224164455438:task-definition/vinted-bot-api:10",
     "containerDefinitions": [
         {
             "name": "vinted-bot-api",
@@ -49,41 +48,10 @@
     "family": "vinted-bot-api",
     "executionRoleArn": "arn:aws:iam::224164455438:role/ecsTaskExecutionRole",
     "networkMode": "bridge",
-    "revision": 10,
     "volumes": [],
-    "status": "ACTIVE",
-    "requiresAttributes": [
-        {
-            "name": "com.amazonaws.ecs.capability.logging-driver.awslogs"
-        },
-        {
-            "name": "ecs.capability.execution-role-awslogs"
-        },
-        {
-            "name": "com.amazonaws.ecs.capability.ecr-auth"
-        },
-        {
-            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.19"
-        },
-        {
-            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.17"
-        },
-        {
-            "name": "ecs.capability.execution-role-ecr-pull"
-        },
-        {
-            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.18"
-        }
-    ],
     "placementConstraints": [],
-    "compatibilities": [
-        "EXTERNAL",
-        "EC2"
-    ],
     "requiresCompatibilities": [
         "EC2"
     ],
-    "registeredAt": "2024-10-05T12:26:52.568Z",
-    "registeredBy": "arn:aws:iam::224164455438:root",
     "tags": []
 }
