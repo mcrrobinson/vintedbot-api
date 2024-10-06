@@ -4,7 +4,7 @@
 Add the creation of the log group
 
 ## Domain
-As of now, the domain is `lemontree.zapto.org`. You change this in the Dockerfile and the location in the `app.ts`.
+As of now, the domain is `shouldhavehttps.zapto.org`. You change this in the Dockerfile and the location in the `app.ts`.
 
 Also change the API URL in the frontend.
 

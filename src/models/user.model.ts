@@ -12,6 +12,7 @@ interface UserAttributes {
     email: string;
     password: string;
     created_at: Date;
+    admin: boolean;
 
 }
 
@@ -23,6 +24,7 @@ class User extends Model < UserAttributes, UserCreationAttributes > implements U
     public email!: string;
     public password!: string;
     public created_at!: Date;
+    public admin!: boolean;
     public validPassword: ((password: string) => boolean) | undefined; // Fix this undefined
 
 }
@@ -51,6 +53,11 @@ User.init({
         allowNull: false,
         defaultValue: DataTypes.NOW
     },
+    admin: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false
+    }
 
 }, {
     sequelize,
