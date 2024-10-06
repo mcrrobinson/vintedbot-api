@@ -1,0 +1,104 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+
+  # Create a Log Group for ECS Task Logging
+  ECSLogGroup:
+    Type: 'AWS::Logs::LogGroup'
+    Properties:
+      LogGroupName: '/ecs/vinted-bot-api'
+      RetentionInDays: 30
+
+  # Use Existing Security Group or Create a New One for ECS tasks
+  ECSSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: 'Allow access to ECS tasks'
+      VpcId: 'vpc-0f3307da2b3567f42'
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: '0.0.0.0/0'
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: '0.0.0.0/0'
+
+  # Create an ECS Cluster
+  ECSCluster:
+    Type: 'AWS::ECS::Cluster'
+    Properties:
+      ClusterName: 'VintedCluster'
+
+  # ECS Instance Role
+  ECSInstanceRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Principal:
+              Service: 'ec2.amazonaws.com'
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role'
+
+  # ECS Instance Profile
+  ECSInstanceProfile:
+    Type: 'AWS::IAM::InstanceProfile'
+    Properties:
+      Roles:
+        - !Ref ECSInstanceRole
+
+  # Launch an EC2 Instance for ECS
+  ECSInstance:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      InstanceType: 't2.micro'
+      ImageId: !Sub '{{resolve:ssm:/aws/service/ecs/optimized-ami/amazon-linux-2/recommended/image_id}}'
+      IamInstanceProfile: !Ref ECSInstanceProfile
+      SecurityGroupIds:
+        - !Ref ECSSecurityGroup
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          echo ECS_CLUSTER=${ECSCluster} >> /etc/ecs/ecs.config
+
+  # Create ECS Task Definition
+  ECSTaskDefinition:
+    Type: 'AWS::ECS::TaskDefinition'
+    Properties:
+      Family: 'vinted-bot-api'
+      NetworkMode: 'bridge'  # Changed to 'bridge' for EC2
+      RequiresCompatibilities:
+        - EC2
+      ExecutionRoleArn: 'arn:aws:iam::224164455438:role/ecsTaskExecutionRole'
+      ContainerDefinitions:
+        - Name: 'vinted-bot-api'
+          Image: '224164455438.dkr.ecr.eu-west-2.amazonaws.com/vinted-bot/api'
+          Cpu: 256
+          Memory: 512
+          PortMappings:
+            - ContainerPort: 80
+              HostPort: 80
+              Protocol: tcp
+            - ContainerPort: 443
+              HostPort: 443
+              Protocol: tcp
+          Essential: true
+          LogConfiguration:
+            LogDriver: 'awslogs'
+            Options:
+              awslogs-group: !Ref ECSLogGroup
+              awslogs-region: 'eu-west-2'
+              awslogs-stream-prefix: 'ecs'
+
+  # Create an ECS Service
+  ECSService:
+    Type: 'AWS::ECS::Service'
+    Properties:
+      Cluster: !Ref ECSCluster
+      DesiredCount: 1
+      LaunchType: EC2  # Changed to EC2
+      TaskDefinition: !Ref ECSTaskDefinition
