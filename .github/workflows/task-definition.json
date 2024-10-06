@@ -1,56 +1,89 @@
 {
-    "family": "vinted-bot-api",
+    "taskDefinitionArn": "arn:aws:ecs:eu-west-2:224164455438:task-definition/vinted-bot-api:10",
     "containerDefinitions": [
         {
             "name": "vinted-bot-api",
             "image": "224164455438.dkr.ecr.eu-west-2.amazonaws.com/vinted-bot/api",
-            "cpu": 0,
+            "cpu": 256,
+            "memory": 512,
+            "links": [],
             "portMappings": [
                 {
-                    "name": "vinted-bot-api-80-tcp",
-                    "containerPort": 80,
-                    "hostPort": 80,
-                    "protocol": "tcp",
-                    "appProtocol": "http"
-                },
-                {
-                    "name": "vinted-bot-api-443-tcp",
                     "containerPort": 443,
                     "hostPort": 443,
-                    "protocol": "tcp",
-                    "appProtocol": "https"
+                    "protocol": "tcp"
+                },
+                {
+                    "containerPort": 80,
+                    "hostPort": 80,
+                    "protocol": "tcp"
                 }
             ],
             "essential": true,
+            "entryPoint": [],
+            "command": [],
             "environment": [],
             "environmentFiles": [],
             "mountPoints": [],
             "volumesFrom": [],
+            "secrets": [],
+            "dnsServers": [],
+            "dnsSearchDomains": [],
+            "extraHosts": [],
+            "dockerSecurityOptions": [],
+            "dockerLabels": {},
             "ulimits": [],
             "logConfiguration": {
                 "logDriver": "awslogs",
                 "options": {
-                    "awslogs-create-group": "true",
                     "awslogs-group": "/ecs/vinted-bot-api",
                     "awslogs-region": "eu-west-2",
                     "awslogs-stream-prefix": "ecs"
                 },
                 "secretOptions": []
             },
-            "systemControls": []
+            "systemControls": [],
+            "credentialSpecs": []
         }
     ],
+    "family": "vinted-bot-api",
     "executionRoleArn": "arn:aws:iam::224164455438:role/ecsTaskExecutionRole",
-    "networkMode": "awsvpc",
+    "networkMode": "bridge",
+    "revision": 10,
     "volumes": [],
-    "placementConstraints": [],
-    "requiresCompatibilities": [
-        "FARGATE"
+    "status": "ACTIVE",
+    "requiresAttributes": [
+        {
+            "name": "com.amazonaws.ecs.capability.logging-driver.awslogs"
+        },
+        {
+            "name": "ecs.capability.execution-role-awslogs"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.ecr-auth"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.19"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.17"
+        },
+        {
+            "name": "ecs.capability.execution-role-ecr-pull"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.18"
+        }
     ],
-    "cpu": "256",
-    "memory": "512",
-    "runtimePlatform": {
-        "cpuArchitecture": "X86_64",
-        "operatingSystemFamily": "LINUX"
-    }
+    "placementConstraints": [],
+    "compatibilities": [
+        "EXTERNAL",
+        "EC2"
+    ],
+    "requiresCompatibilities": [
+        "EC2"
+    ],
+    "registeredAt": "2024-10-05T12:26:52.568Z",
+    "registeredBy": "arn:aws:iam::224164455438:root",
+    "tags": []
 }
