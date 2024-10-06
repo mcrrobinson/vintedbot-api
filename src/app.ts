@@ -11,7 +11,6 @@ const INSECURE_PORT = process.env.INSECURE_PORT || 80
 const SECURE_PORT = process.env.SECURE_PORT || 443;
 const HOST = process.env.HOST || '0.0.0.0';
 
-// const certsPath = './src';
 const certsPath = process.env.CERTS_PATH  || '/etc/letsencrypt/live/shouldhavehttps.zapto.org';
 const privKeyPath = `${certsPath}/privkey.pem`;
 const certPath = `${certsPath}/cert.pem`;
