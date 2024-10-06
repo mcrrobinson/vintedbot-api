@@ -5,6 +5,15 @@ on:
     branches:
       - main # Set this to the branch you want to trigger the build.
 
+env:
+  AWS_REGION: eu-west-2
+  ECR_REPOSITORY: vinted-bot-api
+  ECS_SERVICE: VintedECSCluster-ECSService-boeWFqh4dhFd
+  ECS_CLUSTER: VintedCluster
+  ECS_TASK_DEFINITION: .github/workflows/task-definition.json
+  CONTAINER_NAME: vinted-bot-api
+  AWS_ACCOUNT_ID: 224164455438
+
 jobs:
   build-and-push:
     permissions:
