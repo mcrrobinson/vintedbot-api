@@ -43,4 +43,4 @@ EXPOSE 80
 EXPOSE 443
 
 # Add a script that runs everything
-CMD sh -c "certbot certonly --standalone -d lemonss.zapto.org --non-interactive --agree-tos -m mrmcrrobinson@gmail.com && (crontab -l 2>/dev/null; echo '0 0,12 * * * certbot renew --standalone') | crontab - && node src/app.js"
+CMD sh -c "certbot certonly --standalone -d shouldhavehttps.zapto.org --non-interactive --agree-tos -m mrmcrrobinson@gmail.com && (crontab -l 2>/dev/null; echo '0 0,12 * * * certbot renew --standalone') | crontab - && node src/app.js"

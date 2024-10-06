@@ -7,16 +7,11 @@ import { Router } from 'express';
 import express from 'express';
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
+import { authenticateToken, generateAccessToken, generateRefreshToken, getAccessToken, getUserFromAccessToken, REFRESH_TOKEN_SECRET } from './helper';
 const jobManager = require('./jobManager');
 
 dotenv.config();
 const router = Router();
-const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET || 'youraccesstokensecret';
-const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET || 'yourrefreshtokensecret';
-
-// Read the mapping data
-// var mapping = fs.readFileSync('./routes/code.json', 'utf8');
-// var CODE_MAPPING = JSON.parse(mapping);
 
 Alerts.findAll().then((alerts) => {
     alerts.forEach((result) => {
@@ -44,72 +39,9 @@ Alerts.findAll().then((alerts) => {
 // Middleware
 router.use(express.json());
 
-async function generateAccessToken(email: string) {
-    return jwt.sign({ email }, ACCESS_TOKEN_SECRET, { expiresIn: '1m' });
-}
-
-async function generateRefreshToken(user_id: number, email: string) {
-    const refreshToken = jwt.sign({ email: email }, REFRESH_TOKEN_SECRET);
-
-    await Session.create({
-        user_id: user_id,
-        refresh_token: refreshToken
-    });
-
-    return refreshToken;
-}
-
-async function getAccessToken(req: any) {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-    return token;
-}
-
-async function getUserFromAccessToken(token: string): Promise<User | null> {
-    try {
-        // Decode the token and extract the email
-        const decoded = jwt.decode(token) as { email?: string };
-        
-        // Check if the email exists in the decoded token
-        if (!decoded || !decoded.email) {
-            throw new Error('Invalid token: email not found');
-        }
-
-        // Use the email to find the user in the database
-        return await User.findOne({ where: { email: decoded.email } });
-    } catch (error) {
-        console.error('Error decoding token or finding user:', error);
-        throw error;
-    }
-}
-
-    
-
-// Middleware to authenticate token
-async function authenticateToken(req: any, res: any, next: any) {
-    const token = await getAccessToken(req);
-
-    if (!token) return res.status(401).json({});
-
-    // // Check if the token is in db
-    // const session = await Session.findOne({where: {refresh_token: token}})
-    // if (!session) return res.status(403);
-
-    jwt.verify(token, ACCESS_TOKEN_SECRET, (err: any, user: any) => {
-        
-        // Tell the client they need to refresh the token
-        if (err instanceof jwt.TokenExpiredError) return res.status(409).json({});
-
-        // Otherwise tell the client the token is invalid, log them out.
-        if (err) return res.status(403).json({});
-        req.user = user;
-        next();
-    });
-}
 
 router.post('/password-update', authenticateToken, async (req: any, res: any) => {
-    const accessToken = await getAccessToken(req);
-    const user = await getUserFromAccessToken(accessToken);
+    const user = await User.findOne({where: {id: req.user.id}});
     if(!user) return res.status(403).json({});
 
     const { currentPassword, newPassword } = req.body;
@@ -129,14 +61,15 @@ router.post('/register', async (req:any, res:any) => {
     try {
         const {name,email,password} = req.body;
 
-        const user = await User.create({name,email,password,created_at: new Date()});
+        const user = await User.create({name,email,password,created_at: new Date(), admin:false});
         
         const refreshToken = await generateRefreshToken(user.id, email);
-        const accessToken = await generateAccessToken(email);
+        const accessToken = await generateAccessToken(user.id, email);
 
         return res.status(201).json({
             accessToken,
-            refreshToken
+            refreshToken,
+            admin: user.admin
         });
     } catch (error) {
         return res.status(400).json({
@@ -158,7 +91,7 @@ router.post('/token', async (req: any, res: any) => {
     const user = await User.findOne({where: {id: session.user_id}});
     if (!user) return res.status(403).json({});
 
-    const decoded = await new Promise((resolve, reject) => {
+    await new Promise((resolve, reject) => {
         jwt.verify(token, REFRESH_TOKEN_SECRET, (err: any, decoded: any) => {
             if (err) return reject(err);
             resolve(decoded);
@@ -166,15 +99,10 @@ router.post('/token', async (req: any, res: any) => {
     });
 
     // Generate new access token
-    const accessToken = await generateAccessToken(user.email);
+    const accessToken = await generateAccessToken(user.id, user.email);
 
     return res.json({ accessToken });
 
-});
-
-// Protected route
-router.get('/protected', authenticateToken, (req, res) => {
-    res.json({ message: 'This is a protected route.' });
 });
 
 router.post('/login', async (req: any, res: any) => {
@@ -193,10 +121,10 @@ router.post('/login', async (req: any, res: any) => {
             });
         }
         
-        const accessToken = await generateAccessToken(user.email);
+        const accessToken = await generateAccessToken(user.id, user.email);
         const refreshToken = await generateRefreshToken(user.id, user.email);
 
-        return res.json({ accessToken, refreshToken });
+        return res.json({ accessToken, refreshToken, admin: user.admin });
     } catch (error) {
         return res.status(500).json({
             error: (error as Error).message
@@ -220,12 +148,14 @@ router.post('/create-alert', authenticateToken, async (req:any, res:any) => {
     const alert: CreateAlert = req.body;
     console.log('Alert:', alert);
 
-    // Get user from token
     const accessToken = await getAccessToken(req);
     if(!accessToken) return res.status(401).json({});
 
     const user = await getUserFromAccessToken(accessToken);
     if(!user) return res.status(403).json({});
+
+    const alertCount = await Alerts.count({where: {user_id: user.id}});
+    if (alertCount >= 5) return res.status(400).json({error: 'Too many alerts'});
 
     // Create an alert, then a cron. If the cron fails to create, undo the creation of the alert.
     Alerts.create({
@@ -282,10 +212,8 @@ router.post('/create-alert', authenticateToken, async (req:any, res:any) => {
     });
 });
 
-router.delete('/delete-alert', authenticateToken, (req, res) => {
-    Alerts.destroy({where: {id: req.body.id}}).then(() => {
-
-        console.log("Deleting job:", req.body.id);
+router.delete('/delete-alert', authenticateToken, (req:any, res) => {
+    Alerts.destroy({where: {id: req.body.id, user_id: req.user.id}}).then(() => {
         jobManager.cancelJob(req.body.id);
         return res.status(200).json({});
     }).catch((error) => {
@@ -295,8 +223,11 @@ router.delete('/delete-alert', authenticateToken, (req, res) => {
     });
 });
 
-router.get('/get-alerts', authenticateToken, (req, res) => {
-    Alerts.findAll().then((alerts) => {
+router.get('/get-alerts', authenticateToken, (req:any, res) => {
+    Alerts.findAll({
+        where: {user_id: req.user.id}
+    }
+    ).then((alerts) => {
         return res.json(alerts);
     }).catch((error) => {
         return res.status(500).json({
@@ -318,7 +249,7 @@ router.get('/get-mapping', authenticateToken, (req:any, res:any) => {
 
 router.get('/get-results', authenticateToken, async (req:any, res:any) => {
     // Get all alerts for the user
-    const alerts = await Alerts.findAll();
+    const alerts = await Alerts.findAll({where: {user_id: req.user.id}});
     if (!alerts) return res.status(404).json({});
 
     // Get all results for the alerts

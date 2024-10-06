@@ -1,17 +1,17 @@
 import express from 'express';
 import db from './models';
 import userRoutes from './routes';
+import adminRoutes from './routes/admin';
 const https = require('https');
 const http = require('http');
 const cors = require('cors');
 const fs = require('fs');
 const app = express();
-
-const PORT = process.env.PORT || 443;
+const INSECURE_PORT = process.env.INSECURE_PORT || 80
+const SECURE_PORT = process.env.SECURE_PORT || 443;
 const HOST = process.env.HOST || '0.0.0.0';
 
-// const certsPath = './src';
-const certsPath = '/etc/letsencrypt/live/lemonss.zapto.org';
+const certsPath = process.env.CERTS_PATH  || '/etc/letsencrypt/live/shouldhavehttps.zapto.org';
 const privKeyPath = `${certsPath}/privkey.pem`;
 const certPath = `${certsPath}/cert.pem`;
 
@@ -59,6 +59,7 @@ app.options('*', cors());
 
 // Routes
 app.use('/users', userRoutes);
+app.use('/admin', adminRoutes);
 
 // Test database connection and sync
 db.sequelize.authenticate()
@@ -73,8 +74,8 @@ db.sequelize.authenticate()
     console.error('Unable to connect to the database:', error);
   });
 
-httpServer.listen(80, HOST, () => {
-  console.log(`Server is listening at http://${HOST}:80`);
+httpServer.listen(INSECURE_PORT, HOST, () => {
+  console.log(`Server is listening at http://${HOST}:${INSECURE_PORT}`);
 });
 
 httpServer.on('error', (error: any) => {
@@ -82,8 +83,8 @@ httpServer.on('error', (error: any) => {
 });
 
 // Start listening on a specific port and address
-httpsServer.listen(PORT, HOST, () => {
-  console.log(`Server is listening at https://${HOST}:${PORT}`);
+httpsServer.listen(SECURE_PORT, HOST, () => {
+  console.log(`Server is listening at https://${HOST}:${SECURE_PORT}`);
 });
 
 // When an error occurs, show it
