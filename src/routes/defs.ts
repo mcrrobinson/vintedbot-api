@@ -247,7 +247,6 @@ export interface Alert {
     name: string;
     min_price: number;
     max_price: number;
-    freq: number;
     sizes: number[];
     condition: number[];
     keywords: string[];

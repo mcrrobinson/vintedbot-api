@@ -1,4 +1,4 @@
-import {DataTypes,Model,Optional} from 'sequelize';
+import {DataTypes,Model,Optional, SmallIntegerDataType} from 'sequelize';
 import sequelize from '../config/database';
 
 interface AlertAttributes {
@@ -7,7 +7,6 @@ interface AlertAttributes {
     name: string;
     min_price: number;
     max_price: number;
-    freq: number;
     sizes: number[];
     condition: number[];
     keywords: string[];
@@ -15,10 +14,11 @@ interface AlertAttributes {
     user_id: number;
     colour: number[];
     category: number;
-    notification_frequency: string;
+    notification_frequency: number;
     category_friendly: string;
     brand_friendly: string[];
     condition_friendly: string[];
+    last_executed: Date | null;
 }
 
 interface UserCreationAttributes extends Optional < AlertAttributes, 'id' > {}
@@ -29,7 +29,6 @@ class Alerts extends Model < AlertAttributes, UserCreationAttributes > implement
     public name!: string;
     public min_price!: number;
     public max_price!: number;
-    public freq!: number;
     public sizes!: number[];
     public condition!: number[];
     public keywords!: string[];
@@ -37,10 +36,11 @@ class Alerts extends Model < AlertAttributes, UserCreationAttributes > implement
     public user_id!: number;
     public colour!: number[];
     public category!: number;
-    public notification_frequency!: string;
+    public notification_frequency!: number;
     public category_friendly!: string;
     public brand_friendly!: string[];
     public condition_friendly!: string[];
+    public last_executed!: Date | null;
 }
 
 Alerts.init({
@@ -63,10 +63,6 @@ Alerts.init({
         allowNull: false
     },
     max_price: {
-        type: DataTypes.INTEGER,
-        allowNull: false
-    },
-    freq: {
         type: DataTypes.INTEGER,
         allowNull: false
     },
@@ -113,6 +109,10 @@ Alerts.init({
     condition_friendly: {
         type: DataTypes.ARRAY(DataTypes.STRING),
         allowNull: false
+    },
+    last_executed: {
+        type: DataTypes.DATE,
+        allowNull: true
     }
 }, {
     sequelize,
