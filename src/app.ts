@@ -44,6 +44,8 @@ const allowedOrigins = [
   'https://vinted-bot-frontend-react-app.s3.eu-west-2.amazonaws.com',
   'http://d1velgrd8uxzgd.cloudfront.net',
   'https://d1velgrd8uxzgd.cloudfront.net',
+  'https://vintedbot.co.uk',
+  'http://vintedbot.co.uk',
   'http://localhost:3000'
 ];
 
