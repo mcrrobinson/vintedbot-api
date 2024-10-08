@@ -42,8 +42,8 @@ app.use(function(req, res, next) {
 const allowedOrigins = [
   'http://vintedbot-frontend-react-app.s3-website.eu-west-2.amazonaws.com',
   'https://vintedbot-frontend-react-app.s3-website.eu-west-2.amazonaws.com',
-  'http://d2x3i2yt1wweva.cloudfront.net',
-  'https://d2x3i2yt1wweva.cloudfront.net',
+  'http://d2tiz1gd6gew4p.cloudfront.net',
+  'https://d2tiz1gd6gew4p.cloudfront.net',
   'http://localhost:3000'
 ];
 
