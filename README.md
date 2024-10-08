@@ -23,7 +23,7 @@ Once you push to the `main` branch it should automatically deploy to AWS. Howeve
 
 > **NOTE**: Make sure docker locally is running.
 
-> **NOTE**: As of now, the domain is `shouldhavehttps.zapto.org`. You change this in the Dockerfile and the location in the `app.ts`.
+> **NOTE**: As of now, the domain is `anewhttpsproxy.zapto.org`. You change this in the Dockerfile and the location in the `app.ts`.
 
 1. Get your credentials from AWS to do the upload to ECR.
 
