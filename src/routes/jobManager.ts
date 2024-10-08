@@ -15,12 +15,13 @@ class JobManager {
             throw new Error('Job ID already exists.');
         }
 
+        // Run the task once, then the next time the cron job will pick it up.
+        task();
+
         // Schedule the job
         const job = cron.schedule(cronExpression, () => {
             try {
-                console.log(`Starting job... ${id}`);
                 task();
-                console.log("Job completed.");
             } catch (error) {
                 console.error(`Error in job ${id}:`, error);
             }

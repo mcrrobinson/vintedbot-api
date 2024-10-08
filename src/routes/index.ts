@@ -8,7 +8,6 @@ import express from 'express';
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
 import { authenticateToken, generateAccessToken, generateRefreshToken, getAccessToken, getUserFromAccessToken, REFRESH_TOKEN_SECRET } from './helper';
-import { SmallIntegerDataType } from 'sequelize';
 const jobManager = require('./jobManager');
 
 dotenv.config();
@@ -33,7 +32,6 @@ const notificationFreqToCron = (notificationFrequency: number) => {
 
 Alerts.findAll().then((alerts) => {
     alerts.forEach((result) => {
-        console.log(`Found existing alert with ID ${result.id}, scheduling...`);
         jobManager.scheduleJob(result.id, notificationFreqToCron(result.notification_frequency), () => {
             fetch(`https://3aw6qin8ol.execute-api.eu-west-2.amazonaws.com/Prod/update-results/${result.id}`)
             .then((response) => {
@@ -170,7 +168,6 @@ const validateNotificationFrequency = (notificationFrequency: number) =>{
 
 router.post('/create-alert', authenticateToken, async (req:any, res:any) => {
     const alert: CreateAlert = req.body;
-    console.log('Alert:', alert);
 
     if(!validateNotificationFrequency(alert.notificationFrequency)) {
         return res.status(400).json({error: 'Invalid notification frequency'});
@@ -184,7 +181,6 @@ router.post('/create-alert', authenticateToken, async (req:any, res:any) => {
 
     const alertCount = await Alerts.count({where: {user_id: user.id}});
     if (alertCount >= 5) return res.status(400).json({error: 'Too many alerts'});
-
 
     // Create an alert, then a cron. If the cron fails to create, undo the creation of the alert.
     Alerts.create({
