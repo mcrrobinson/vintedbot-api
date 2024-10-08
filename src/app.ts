@@ -40,10 +40,12 @@ app.use(function(req, res, next) {
 });
 
 const allowedOrigins = [
-  'http://vintedbot-frontend-react-app.s3-website.eu-west-2.amazonaws.com',
-  'https://vintedbot-frontend-react-app.s3-website.eu-west-2.amazonaws.com',
-  'http://d2x3i2yt1wweva.cloudfront.net',
-  'https://d2x3i2yt1wweva.cloudfront.net',
+  'http://vinted-bot-frontend-react-app.s3.eu-west-2.amazonaws.com',
+  'https://vinted-bot-frontend-react-app.s3.eu-west-2.amazonaws.com',
+  'http://d1velgrd8uxzgd.cloudfront.net',
+  'https://d1velgrd8uxzgd.cloudfront.net',
+  'https://vintedbot.co.uk',
+  'http://vintedbot.co.uk',
   'http://localhost:3000'
 ];
 

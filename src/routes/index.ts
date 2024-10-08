@@ -13,10 +13,26 @@ const jobManager = require('./jobManager');
 dotenv.config();
 const router = Router();
 
+const notificationFreqToCron = (notificationFrequency: number) => {
+    switch (notificationFrequency) {
+        case 0: // 5 minutes
+            return '*/5 * * * *';
+        case 1: // 10 minutes
+            return '*/10 * * * *';
+        case 2: // 30 minutes
+            return '*/30 * * * *';
+        case 3: // 1 hour
+            return  '0 * * * *';
+        case 4: // 1 day
+            return '0 0 * * *';
+        default:
+            throw new Error('Invalid notification frequency');
+    }
+}
+
 Alerts.findAll().then((alerts) => {
     alerts.forEach((result) => {
-        console.log(`Found existing alert with ID ${result.id}, scheduling...`);
-        jobManager.scheduleJob(result.id, '0 * * * *', () => {
+        jobManager.scheduleJob(result.id, notificationFreqToCron(result.notification_frequency), () => {
             fetch(`https://3aw6qin8ol.execute-api.eu-west-2.amazonaws.com/Prod/update-results/${result.id}`)
             .then((response) => {
                 if (!response.ok) {
@@ -141,12 +157,21 @@ interface CreateAlert {
     priceMax: number;
     sizes: number[];
     keywords: string[];
-    notificationFrequency: string;
+    notificationFrequency: number;
+}
+
+const validateNotificationFrequency = (notificationFrequency: number) =>{
+
+    // We are currently allowing 30 minutes, 1 hour and 1 day. 
+    return notificationFrequency >= 2 && notificationFrequency <= 4;
 }
 
 router.post('/create-alert', authenticateToken, async (req:any, res:any) => {
     const alert: CreateAlert = req.body;
-    console.log('Alert:', alert);
+
+    if(!validateNotificationFrequency(alert.notificationFrequency)) {
+        return res.status(400).json({error: 'Invalid notification frequency'});
+    }
 
     const accessToken = await getAccessToken(req);
     if(!accessToken) return res.status(401).json({});
@@ -170,7 +195,6 @@ router.post('/create-alert', authenticateToken, async (req:any, res:any) => {
         notification_frequency: alert.notificationFrequency,
         user_id: user.id,
         created_at: new Date(),
-        freq: 0,
         colour: [],
         category_friendly: '',
         brand_friendly: [],
@@ -179,7 +203,7 @@ router.post('/create-alert', authenticateToken, async (req:any, res:any) => {
     }).then((alert) => {
 
         try {
-            jobManager.scheduleJob(alert.id, '0 * * * *', () => {
+            jobManager.scheduleJob(alert.id, notificationFreqToCron(alert.notification_frequency), () => {
 
                 fetch(`https://3aw6qin8ol.execute-api.eu-west-2.amazonaws.com/Prod/update-results/${alert.id}`)
                 .then((response) => {

@@ -20,6 +20,7 @@ npm run
 Once you push to the `main` branch it should automatically deploy to AWS. However, if you want to do it automated follow the steps below.
 
 ### Manual
+
 > **NOTE**: Make sure docker locally is running.
 
 > **NOTE**: As of now, the domain is `shouldhavehttps.zapto.org`. You change this in the Dockerfile and the location in the `app.ts`.
