@@ -8,11 +8,11 @@ Resources:
       LogGroupName: '/ecs/vinted-bot-api'
       RetentionInDays: 30
 
-  # Use Existing Security Group or Create a New One for ECS tasks
+  # Use Existing Security Group for Load Balancer and ECS tasks
   ECSSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
-      GroupDescription: 'Allow access to ECS tasks'
+      GroupDescription: 'Allow access to ECS tasks and ALB'
       VpcId: 'vpc-0f3307da2b3567f42'
       SecurityGroupIngress:
         - IpProtocol: tcp
@@ -30,61 +30,77 @@ Resources:
     Properties:
       ClusterName: 'VintedCluster'
 
-  # ECS Instance Role
-  ECSInstanceRole:
-    Type: 'AWS::IAM::Role'
+  # Create an Elastic IP
+  ElasticIP:
+    Type: 'AWS::EC2::EIP'
     Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: 'Allow'
-            Principal:
-              Service: 'ec2.amazonaws.com'
-            Action: 'sts:AssumeRole'
-      ManagedPolicyArns:
-        - 'arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role'
+      Domain: 'vpc'
 
-  # ECS Instance Profile
-  ECSInstanceProfile:
-    Type: 'AWS::IAM::InstanceProfile'
+  # Create an Application Load Balancer
+  ApplicationLoadBalancer:
+    Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
     Properties:
-      Roles:
-        - !Ref ECSInstanceRole
-
-  # Launch an EC2 Instance for ECS
-  ECSInstance:
-    Type: 'AWS::EC2::Instance'
-    Properties:
-      InstanceType: 't2.micro'
-      ImageId: !Sub '{{resolve:ssm:/aws/service/ecs/optimized-ami/amazon-linux-2/recommended/image_id}}'
-      IamInstanceProfile: !Ref ECSInstanceProfile
-      SecurityGroupIds:
+      Name: 'VintedALB'
+      Scheme: 'internet-facing'
+      Subnets:
+        - 'subnet-031d8cdd6228919df'
+        - 'subnet-03a6abaeb06bf6d0f'
+        - 'subnet-0478b3c319ccbbca6'
+      SecurityGroups:
         - !Ref ECSSecurityGroup
-      UserData:
-        Fn::Base64: !Sub |
-          #!/bin/bash
-          echo ECS_CLUSTER=${ECSCluster} >> /etc/ecs/ecs.config
+      LoadBalancerAttributes:
+        - Key: 'idle_timeout.timeout_seconds'
+          Value: '60'
+
+  # Associate Elastic IP with the Network Interface
+  ElasticIPAssociation:
+    Type: 'AWS::EC2::EIPAssociation'
+    Properties:
+      AllocationId: !GetAtt ElasticIP.AllocationId
+      NetworkInterfaceId: !Ref ALBNetworkInterface
+
+  # Create a Target Group for the ALB
+  ALBTargetGroup:
+    Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
+    Properties:
+      Name: 'VintedTargetGroup'
+      Protocol: 'HTTP'
+      Port: 80
+      VpcId: 'vpc-0f3307da2b3567f42'
+      TargetType: 'ip'
+      HealthCheckProtocol: 'HTTP'
+      HealthCheckPath: '/'
+      HealthCheckIntervalSeconds: 30
+
+  # Create a Listener for the ALB (HTTPS)
+  ALBListener:
+    Type: 'AWS::ElasticLoadBalancingV2::Listener'
+    Properties:
+      DefaultActions:
+        - Type: 'forward'
+          TargetGroupArn: !Ref ALBTargetGroup
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Port: 443
+      Protocol: 'HTTPS'
+      Certificates:
+        - CertificateArn: 'arn:aws:acm:eu-west-2:224164455438:certificate/ba596a09-f950-4e72-bd3c-be934ef92ca9'
 
   # Create ECS Task Definition
   ECSTaskDefinition:
     Type: 'AWS::ECS::TaskDefinition'
     Properties:
       Family: 'vinted-bot-api'
-      NetworkMode: 'bridge'  # Changed to 'bridge' for EC2
+      NetworkMode: 'awsvpc'
       RequiresCompatibilities:
-        - EC2
+        - FARGATE
+      Cpu: '256'
+      Memory: '512'
       ExecutionRoleArn: 'arn:aws:iam::224164455438:role/ecsTaskExecutionRole'
       ContainerDefinitions:
         - Name: 'vinted-bot-api'
           Image: '224164455438.dkr.ecr.eu-west-2.amazonaws.com/vinted-bot/api'
-          Cpu: 256
-          Memory: 512
           PortMappings:
             - ContainerPort: 80
-              HostPort: 80
-              Protocol: tcp
-            - ContainerPort: 443
-              HostPort: 443
               Protocol: tcp
           Essential: true
           LogConfiguration:
@@ -100,5 +116,18 @@ Resources:
     Properties:
       Cluster: !Ref ECSCluster
       DesiredCount: 1
-      LaunchType: EC2  # Changed to EC2
+      LaunchType: FARGATE
       TaskDefinition: !Ref ECSTaskDefinition
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: 'ENABLED'
+          Subnets:
+            - 'subnet-031d8cdd6228919df'
+            - 'subnet-03a6abaeb06bf6d0f'
+            - 'subnet-0478b3c319ccbbca6'
+          SecurityGroups:
+            - !Ref ECSSecurityGroup
+      LoadBalancers:
+        - ContainerName: 'vinted-bot-api'
+          ContainerPort: 80
+          TargetGroupArn: !Ref ALBTargetGroup

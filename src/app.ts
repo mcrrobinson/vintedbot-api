@@ -2,26 +2,10 @@ import express from 'express';
 import db from './models';
 import userRoutes from './routes';
 import adminRoutes from './routes/admin';
-const https = require('https');
 const http = require('http');
 const cors = require('cors');
-const fs = require('fs');
 const app = express();
-const INSECURE_PORT = process.env.INSECURE_PORT || 80
-const SECURE_PORT = process.env.SECURE_PORT || 443;
 const HOST = process.env.HOST || '0.0.0.0';
-
-const certsPath = process.env.CERTS_PATH  || '/etc/letsencrypt/live/api.vintedbot.co.uk';
-const privKeyPath = `${certsPath}/privkey.pem`;
-const certPath = `${certsPath}/cert.pem`;
-
-const options = {
-  key: fs.readFileSync(privKeyPath, 'utf8'),
-  cert: fs.readFileSync(certPath, 'utf8'),
-}
-
-const credentials = { key: options.key, cert: options.cert };
-const httpsServer = https.createServer(credentials, app);
 const httpServer = http.createServer(app);
 
 // Middleware
@@ -72,37 +56,10 @@ db.sequelize.authenticate()
     console.error('Unable to connect to the database:', error);
   });
 
-httpServer.listen(INSECURE_PORT, HOST, () => {
-  console.log(`Server is listening at http://${HOST}:${INSECURE_PORT}`);
+httpServer.listen(80, HOST, () => {
+  console.log(`Server is listening at http://${HOST}:80`);
 });
 
 httpServer.on('error', (error: any) => {
   console.error('Server error:', error);
-});
-
-// Start listening on a specific port and address
-httpsServer.listen(SECURE_PORT, HOST, () => {
-  console.log(`Server is listening at https://${HOST}:${SECURE_PORT}`);
-});
-
-// When an error occurs, show it
-httpsServer.on('error', (error: any) => {
-  console.error('Server error:', error);
-});
-
-// Watch for certificate file changes
-fs.watchFile(certPath, () => {
-  console.log('Certificate file changed, reloading...');
-
-  try {
-    let privateKey = fs.readFileSync(privKeyPath, 'utf8');
-    let certificate = fs.readFileSync(certPath, 'utf8');
-
-    let credentials = { key: privateKey, cert: certificate };
-
-    httpsServer.setSecureContext(credentials);
-    console.log('Certificate reloaded successfully');
-  } catch (error) {
-    console.error('Error reloading certificate:', error);
-  }
 });
