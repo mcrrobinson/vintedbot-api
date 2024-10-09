@@ -8,11 +8,11 @@ Resources:
       LogGroupName: '/ecs/vinted-bot-api'
       RetentionInDays: 30
 
-  # Use Existing Security Group for Load Balancer and ECS tasks
+  # Use Existing Security Group or Create a New One for ECS tasks
   ECSSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
-      GroupDescription: 'Allow access to ECS tasks and ALB'
+      GroupDescription: 'Allow access to ECS tasks'
       VpcId: 'vpc-0f3307da2b3567f42'
       SecurityGroupIngress:
         - IpProtocol: tcp
@@ -30,62 +30,7 @@ Resources:
     Properties:
       ClusterName: 'VintedCluster'
 
-  # Create an Elastic IP
-  ElasticIP:
-    Type: 'AWS::EC2::EIP'
-    Properties:
-      Domain: 'vpc'
-
-  # Create an Application Load Balancer
-  ApplicationLoadBalancer:
-    Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
-    Properties:
-      Name: 'VintedALB'
-      Scheme: 'internet-facing'
-      Subnets:
-        - 'subnet-031d8cdd6228919df'
-        - 'subnet-03a6abaeb06bf6d0f'
-        - 'subnet-0478b3c319ccbbca6'
-      SecurityGroups:
-        - !Ref ECSSecurityGroup
-      LoadBalancerAttributes:
-        - Key: 'idle_timeout.timeout_seconds'
-          Value: '60'
-
-  # Associate Elastic IP with the Network Interface
-  ElasticIPAssociation:
-    Type: 'AWS::EC2::EIPAssociation'
-    Properties:
-      AllocationId: !GetAtt ElasticIP.AllocationId
-      NetworkInterfaceId: !Ref ALBNetworkInterface
-
-  # Create a Target Group for the ALB
-  ALBTargetGroup:
-    Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
-    Properties:
-      Name: 'VintedTargetGroup'
-      Protocol: 'HTTP'
-      Port: 80
-      VpcId: 'vpc-0f3307da2b3567f42'
-      TargetType: 'ip'
-      HealthCheckProtocol: 'HTTP'
-      HealthCheckPath: '/'
-      HealthCheckIntervalSeconds: 30
-
-  # Create a Listener for the ALB (HTTPS)
-  ALBListener:
-    Type: 'AWS::ElasticLoadBalancingV2::Listener'
-    Properties:
-      DefaultActions:
-        - Type: 'forward'
-          TargetGroupArn: !Ref ALBTargetGroup
-      LoadBalancerArn: !Ref ApplicationLoadBalancer
-      Port: 443
-      Protocol: 'HTTPS'
-      Certificates:
-        - CertificateArn: 'arn:aws:acm:eu-west-2:224164455438:certificate/ba596a09-f950-4e72-bd3c-be934ef92ca9'
-
-  # Create ECS Task Definition
+  # Create ECS Task Definition for Fargate
   ECSTaskDefinition:
     Type: 'AWS::ECS::TaskDefinition'
     Properties:
@@ -99,6 +44,8 @@ Resources:
       ContainerDefinitions:
         - Name: 'vinted-bot-api'
           Image: '224164455438.dkr.ecr.eu-west-2.amazonaws.com/vinted-bot/api'
+          Cpu: 256
+          Memory: 512
           PortMappings:
             - ContainerPort: 80
               Protocol: tcp
@@ -110,7 +57,65 @@ Resources:
               awslogs-region: 'eu-west-2'
               awslogs-stream-prefix: 'ecs'
 
-  # Create an ECS Service
+  # Create an ALB Security Group
+  ALBSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: 'Allow inbound traffic for ALB'
+      VpcId: 'vpc-0f3307da2b3567f42'
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: '0.0.0.0/0'
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: '0.0.0.0/0'
+
+  # Create an Application Load Balancer
+  LoadBalancer:
+    Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
+    Properties:
+      Name: 'VintedALB'
+      Scheme: 'internet-facing'
+      Subnets:
+        - 'subnet-031d8cdd6228919df'
+        - 'subnet-03a6abaeb06bf6d0f'
+        - 'subnet-0478b3c319ccbbca6'
+      SecurityGroups:
+        - !Ref ALBSecurityGroup
+
+  # Create a Target Group for the ALB
+  TargetGroup:
+    Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
+    Properties:
+      Name: 'VintedTargetGroup'
+      VpcId: 'vpc-0f3307da2b3567f42'
+      Protocol: 'HTTP'
+      Port: 80
+      TargetType: 'ip'
+      HealthCheckEnabled: true
+      HealthCheckPath: '/'
+      HealthCheckIntervalSeconds: 30
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 3
+
+  # ALB Listener for HTTPS
+  HTTPSListener:
+    Type: 'AWS::ElasticLoadBalancingV2::Listener'
+    Properties:
+      DefaultActions:
+        - Type: 'forward'
+          TargetGroupArn: !Ref TargetGroup
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 443
+      Protocol: 'HTTPS'
+      SslPolicy: 'ELBSecurityPolicy-2016-08'
+      Certificates:
+        - CertificateArn: 'arn:aws:acm:eu-west-2:224164455438:certificate/ba596a09-f950-4e72-bd3c-be934ef92ca9'
+
+  # Create an ECS Service for Fargate
   ECSService:
     Type: 'AWS::ECS::Service'
     Properties:
@@ -120,14 +125,18 @@ Resources:
       TaskDefinition: !Ref ECSTaskDefinition
       NetworkConfiguration:
         AwsvpcConfiguration:
-          AssignPublicIp: 'ENABLED'
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - !Ref ECSSecurityGroup
           Subnets:
             - 'subnet-031d8cdd6228919df'
             - 'subnet-03a6abaeb06bf6d0f'
             - 'subnet-0478b3c319ccbbca6'
-          SecurityGroups:
-            - !Ref ECSSecurityGroup
       LoadBalancers:
         - ContainerName: 'vinted-bot-api'
           ContainerPort: 80
-          TargetGroupArn: !Ref ALBTargetGroup
+          TargetGroupArn: !Ref TargetGroup
+    DependsOn:
+      - HTTPSListener
+      - TargetGroup
+      - LoadBalancer

@@ -1,4 +1,5 @@
 {
+    "taskDefinitionArn": "arn:aws:ecs:eu-west-2:224164455438:task-definition/vinted-bot-api:23",
     "containerDefinitions": [
         {
             "name": "vinted-bot-api",
@@ -7,11 +8,6 @@
             "memory": 512,
             "links": [],
             "portMappings": [
-                {
-                    "containerPort": 443,
-                    "hostPort": 443,
-                    "protocol": "tcp"
-                },
                 {
                     "containerPort": 80,
                     "hostPort": 80,
@@ -47,11 +43,47 @@
     ],
     "family": "vinted-bot-api",
     "executionRoleArn": "arn:aws:iam::224164455438:role/ecsTaskExecutionRole",
-    "networkMode": "bridge",
+    "networkMode": "awsvpc",
+    "revision": 23,
     "volumes": [],
-    "placementConstraints": [],
-    "requiresCompatibilities": [
-        "EC2"
+    "status": "ACTIVE",
+    "requiresAttributes": [
+        {
+            "name": "com.amazonaws.ecs.capability.logging-driver.awslogs"
+        },
+        {
+            "name": "ecs.capability.execution-role-awslogs"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.ecr-auth"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.19"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.17"
+        },
+        {
+            "name": "ecs.capability.execution-role-ecr-pull"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.18"
+        },
+        {
+            "name": "ecs.capability.task-eni"
+        }
     ],
+    "placementConstraints": [],
+    "compatibilities": [
+        "EC2",
+        "FARGATE"
+    ],
+    "requiresCompatibilities": [
+        "FARGATE"
+    ],
+    "cpu": "256",
+    "memory": "512",
+    "registeredAt": "2024-10-09T22:27:29.044Z",
+    "registeredBy": "arn:aws:iam::224164455438:root",
     "tags": []
 }

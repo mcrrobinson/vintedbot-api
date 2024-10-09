@@ -13,6 +13,10 @@ npm install
 npm run
 ```
 
+```
+aws cloudformation create-stack --stack-name vinted-bot-api --template-body file://template.yaml --capabilities CAPABILITY_NAMED_IAM
+```
+
 ## Deployment
 
 ### Automated
