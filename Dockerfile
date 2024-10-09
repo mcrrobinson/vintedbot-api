@@ -31,16 +31,8 @@ RUN npm install --only=production
 
 COPY --from=builder /usr/src/app/dist ./src
 
-# Just a nullbase for testing without certs
-COPY --from=builder /usr/src/app/src/privkey.pem ./src
-COPY --from=builder /usr/src/app/src/cert.pem ./src
-
-# Install Certbot for managing SSL certificates
-RUN apk add --no-cache certbot
-
 # Expose the ports the app runs on
 EXPOSE 80
-EXPOSE 443
 
 # Add a script that runs everything
-CMD sh -c "certbot certonly --standalone -d api.vintedbot.co.uk --non-interactive --agree-tos -m mrmcrrobinson@gmail.com && (crontab -l 2>/dev/null; echo '0 0,12 * * * certbot renew --standalone') | crontab - && node src/app.js"
+CMD ["node","src/app.js"]
