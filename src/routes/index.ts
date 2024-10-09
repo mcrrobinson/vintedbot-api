@@ -30,27 +30,29 @@ const notificationFreqToCron = (notificationFrequency: number) => {
     }
 }
 
-// Alerts.findAll().then((alerts) => {
-//     alerts.forEach((result) => {
-//         jobManager.scheduleJob(result.id, notificationFreqToCron(result.notification_frequency), () => {
-//             fetch(`https://3aw6qin8ol.execute-api.eu-west-2.amazonaws.com/Prod/update-results/${result.id}`)
-//             .then((response) => {
-//                 if (!response.ok) {
-//                     throw new Error(`response not ok: ${response.statusText}`);
-//                 }
-//                 return response.json();
-//             })
-//             .then((data) => {
-//                 console.log('Data fetched:', data);
-//             })
-//             .catch((error) => {
-//                 console.error('error fetching data:', error);
-//             });
-//         });
-//     });
-// }).catch((error) => {
-//     console.error('Error fetching results:', error);
-// });
+const startTask = (alert_id: number) => {
+    fetch(`https://3aw6qin8ol.execute-api.eu-west-2.amazonaws.com/Prod/update-results/${alert_id}`)
+    .then((response) => {
+        if (!response.ok) {
+            throw new Error('Failed to fetch data');
+        }
+        return response.json();
+    })
+    .then((data) => {
+        console.log('Data fetched:', data);
+    })
+    .catch((error) => {
+        console.error('Error fetching data:', error);
+    });
+};
+
+Alerts.findAll().then((alerts) => {
+    alerts.forEach((result) => {
+        jobManager.scheduleJob(result.id, notificationFreqToCron(result.notification_frequency), startTask(result.id));
+    });
+}).catch((error) => {
+    console.error('Error fetching results:', error);
+});
 
 // Middleware
 router.use(express.json());
@@ -429,22 +431,11 @@ router.post('/create-alert', authenticateToken, async (req:any, res:any) => {
     }).then((alert) => {
 
         try {
-            jobManager.scheduleJob(alert.id, notificationFreqToCron(alert.notification_frequency), () => {
+            // Start task first
+            startTask(alert.id);
 
-                fetch(`https://3aw6qin8ol.execute-api.eu-west-2.amazonaws.com/Prod/update-results/${alert.id}`)
-                .then((response) => {
-                    if (!response.ok) {
-                        throw new Error('Failed to fetch data');
-                    }
-                    return response.json();
-                })
-                .then((data) => {
-                    console.log('Data fetched:', data);
-                })
-                .catch((error) => {
-                    console.error('Error fetching data:', error);
-                });
-            });
+            // Then create the job
+            jobManager.scheduleJob(alert.id, notificationFreqToCron(alert.notification_frequency), startTask(alert.id));
             return res.status(200).json({});
             
         } catch (error) {

@@ -24,8 +24,8 @@ app.use(function(req, res, next) {
 });
 
 const allowedOrigins = [
-  'http://portal.vintedbot.com',
-  'https://portal.vintedbot.com',
+  'http://portal.vintedbot.co.uk',
+  'https://portal.vintedbot.co.uk',
   'http://localhost:3000'
 ];
 
