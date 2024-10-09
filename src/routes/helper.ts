@@ -1,6 +1,9 @@
 import Session from "../models/sessions.model";
 import User from "../models/user.model";
 import jwt from 'jsonwebtoken';
+import { SecretsManager } from 'aws-sdk';
+
+const secretsManager = new SecretsManager();
 
 async function getAccessToken(req: any) {
     const authHeader = req.headers['authorization'];
@@ -45,6 +48,25 @@ async function generateRefreshToken(user_id: number, email: string) {
     return refreshToken;
 }
 
+async function getSecretValue(secretName:string): Promise<any> {
+    try {
+        const secretValue = await secretsManager.getSecretValue({ SecretId: secretName }).promise();
+  
+        if (secretValue.SecretString) {
+            return JSON.parse(secretValue.SecretString);
+        } else {
+            throw new Error(`Secret ${secretName} is not a string`);
+        }
+    } catch (error) {
+        console.error(`Error retrieving secret ${secretName}:`, error);
+        throw error;
+    }
+  }
+
+async function generateEmailToken(email: string) {
+    return jwt.sign({ email: email }, ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
+}
+
 
 
 // Middleware to authenticate token
@@ -81,4 +103,4 @@ async function authenticateAdmin(req: any, res: any, next: any) {
     });
 }
 
-export { getAccessToken, getUserFromAccessToken, ACCESS_TOKEN_SECRET, REFRESH_TOKEN_SECRET, generateAccessToken, generateRefreshToken, authenticateToken, authenticateAdmin };
+export { getAccessToken, getUserFromAccessToken, ACCESS_TOKEN_SECRET, REFRESH_TOKEN_SECRET, generateAccessToken, generateRefreshToken, authenticateToken, authenticateAdmin, generateEmailToken, getSecretValue };

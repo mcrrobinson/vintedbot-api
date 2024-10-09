@@ -7,7 +7,7 @@ import { Router } from 'express';
 import express from 'express';
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
-import { authenticateToken, generateAccessToken, generateRefreshToken, getAccessToken, getUserFromAccessToken, REFRESH_TOKEN_SECRET } from './helper';
+import { ACCESS_TOKEN_SECRET, authenticateToken, generateAccessToken, generateEmailToken, generateRefreshToken, getAccessToken, getUserFromAccessToken, REFRESH_TOKEN_SECRET, getSecretValue } from './helper';
 const jobManager = require('./jobManager');
 
 dotenv.config();
@@ -30,27 +30,27 @@ const notificationFreqToCron = (notificationFrequency: number) => {
     }
 }
 
-Alerts.findAll().then((alerts) => {
-    alerts.forEach((result) => {
-        jobManager.scheduleJob(result.id, notificationFreqToCron(result.notification_frequency), () => {
-            fetch(`https://3aw6qin8ol.execute-api.eu-west-2.amazonaws.com/Prod/update-results/${result.id}`)
-            .then((response) => {
-                if (!response.ok) {
-                    throw new Error(`response not ok: ${response.statusText}`);
-                }
-                return response.json();
-            })
-            .then((data) => {
-                console.log('Data fetched:', data);
-            })
-            .catch((error) => {
-                console.error('error fetching data:', error);
-            });
-        });
-    });
-}).catch((error) => {
-    console.error('Error fetching results:', error);
-});
+// Alerts.findAll().then((alerts) => {
+//     alerts.forEach((result) => {
+//         jobManager.scheduleJob(result.id, notificationFreqToCron(result.notification_frequency), () => {
+//             fetch(`https://3aw6qin8ol.execute-api.eu-west-2.amazonaws.com/Prod/update-results/${result.id}`)
+//             .then((response) => {
+//                 if (!response.ok) {
+//                     throw new Error(`response not ok: ${response.statusText}`);
+//                 }
+//                 return response.json();
+//             })
+//             .then((data) => {
+//                 console.log('Data fetched:', data);
+//             })
+//             .catch((error) => {
+//                 console.error('error fetching data:', error);
+//             });
+//         });
+//     });
+// }).catch((error) => {
+//     console.error('Error fetching results:', error);
+// });
 
 // Middleware
 router.use(express.json());
@@ -72,21 +72,247 @@ router.post('/password-update', authenticateToken, async (req: any, res: any) =>
     return res.status(204).json({});
 });
 
+function sendErrorPage(res: any, message: string) {
+    const html = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Email Verification Failed</title>
+        <style>
+            body { font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #f0f0f0; }
+            .container { text-align: center; padding: 2rem; background-color: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+            h1 { color: #e74c3c; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Email Verification Failed</h1>
+            <p>${message}</p>
+        </div>
+    </body>
+    </html>
+    `;
+    res.status(403).send(html);
+}
+
+function sendSuccessPage(res: any) {
+    const html = `
+    <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Verified</title>
+    <style>
+        @keyframes fadeIn {
+            0% { opacity: 0; transform: scale(0.8); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-20px); }
+            60% { transform: translateY(-10px); }
+        }
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #2e2e2e;
+            color: #e0e0e0;
+            animation: fadeIn 1s ease-in-out;
+        }
+        .container {
+            text-align: center;
+            padding: 2.5rem;
+            background-color: #333;
+            border-radius: 12px;
+            box-shadow: 0 8px 12px rgba(0, 0, 0, 0.3);
+            animation: fadeIn 0.8s ease-in-out;
+        }
+        h1 {
+            color: #27ae60;
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            animation: bounce 2s infinite;
+        }
+        p {
+            color: #b0b0b0;
+            font-size: 1rem;
+        }
+        .checkmark {
+            font-size: 3rem;
+            color: #27ae60;
+            margin-bottom: 1rem;
+            animation: bounce 2s infinite;
+        }
+        button {
+            background-color: #1d72b8;
+            color: #fff;
+            padding: 0.8rem 1.2rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 1.5rem;
+            font-size: 1rem;
+        }
+        button:hover {
+            background-color: #155a8a;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+    <div class="checkmark">✅</div>
+    <h1>Email Verified</h1>
+    <p>Your email has been successfully verified. You can now login.</p>
+    <button onclick="window.location.href = 'https://portal.vintedbot.co.uk/login';">Close</button>
+</div>
+
+</body>
+</html>
+
+    `;
+    res.status(200).send(html);
+}
+
+router.get('/auth-email', async (req: any, res: any) => {
+    // Get token from param
+    const token = req.query.token;
+
+    // Check if token is valid
+    if (!token) return res.status(403).json({});
+
+    // Decode token
+    // Get email from token
+    let email: string;
+    try {
+        const decoded = jwt.verify(token, ACCESS_TOKEN_SECRET);
+        email = (decoded as any).email;
+
+        if (!email) {
+            sendErrorPage(res, 'Email not found in token');
+            return;
+        }
+
+    } catch (error) {
+        console.error('Error decoding token:', error);
+        sendErrorPage(res, 'Invalid token');
+        return;
+    }
+
+    const user = await User.findOne({where: {email}});
+    if (!user) {
+        sendErrorPage(res, 'User not found');
+        return;
+    }
+    user.verified = true;
+    await user.save();
+
+    sendSuccessPage(res);
+});
 
 router.post('/register', async (req:any, res:any) => {
+    const RESEND_CREDS = await getSecretValue("RESEND_API_KEY") || process.env.RESEND_API_KEY;
+
     try {
         const {name,email,password} = req.body;
 
-        const user = await User.create({name,email,password,created_at: new Date(), admin:false});
-        
-        const refreshToken = await generateRefreshToken(user.id, email);
-        const accessToken = await generateAccessToken(user.id, email);
+        const user = await User.create({name,email,password,created_at: new Date(), admin:false, verified: false});
+        const emailToken = await generateEmailToken(email);
 
-        return res.status(201).json({
-            accessToken,
-            refreshToken,
-            admin: user.admin
+        const emailHtml = `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Verify Your Email</title>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    line-height: 1.6;
+                    color: #333;
+                    max-width: 600px;
+                    margin: 0 auto;
+                    padding: 20px;
+                    background-color: #f4f4f4;
+                }
+                .email-container {
+                    background-color: #ffffff;
+                    border-radius: 5px;
+                    padding: 30px;
+                    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+                }
+                h1 {
+                    color: #2c3e50;
+                    margin-bottom: 20px;
+                }
+                p {
+                    margin-bottom: 20px;
+                }
+                .button {
+                    display: inline-block;
+                    padding: 12px 24px;
+                    background-color: #3498db;
+                    color: #ffffff;
+                    text-decoration: none;
+                    border-radius: 5px;
+                    font-weight: bold;
+                    text-align: center;
+                    transition: background-color 0.3s ease;
+                }
+                .button:hover {
+                    background-color: #2980b9;
+                }
+                .footer {
+                    margin-top: 30px;
+                    text-align: center;
+                    font-size: 12px;
+                    color: #7f8c8d;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="email-container">
+                <h1>Verify Your Email Address</h1>
+                <p>Thank you for signing up! To complete your registration and start using our service, please verify your email address by clicking the button below:</p>
+                <p style="text-align: center;">
+                    <a href="https://api.vintedbot.co.uk/users/auth-email?token=${emailToken}" class="button">Verify Email Address</a>
+                </p>
+                <p>If you didn't create an account with us, you can safely ignore this email.</p>
+                <div class="footer">
+                    <p>This email was sent by VintedBot. Please do not reply to this message.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        `;
+
+        const resendRes = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${RESEND_CREDS.RESEND_API_KEY}`,
+            },
+            body: JSON.stringify({
+                from: 'alerts@updates.vintedbot.co.uk',
+                to: user.email,
+                subject: 'Verify your email',
+                html: emailHtml
+            }),
         });
+
+        let response = await resendRes.json();
+        if (!resendRes.ok) {
+            throw new Error(`error sending email: ${response.message}`);
+        }
+
+        res.status(201).json({message: 'User created'});
     } catch (error) {
         return res.status(400).json({
             error: (error as Error).message

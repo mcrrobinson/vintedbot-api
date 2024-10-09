@@ -13,7 +13,7 @@ interface UserAttributes {
     password: string;
     created_at: Date;
     admin: boolean;
-
+    verified: boolean;
 }
 
 interface UserCreationAttributes extends Optional < UserAttributes, 'id' > {}
@@ -25,6 +25,7 @@ class User extends Model < UserAttributes, UserCreationAttributes > implements U
     public password!: string;
     public created_at!: Date;
     public admin!: boolean;
+    public verified!: boolean;
     public validPassword: ((password: string) => boolean) | undefined; // Fix this undefined
 
 }
@@ -54,6 +55,11 @@ User.init({
         defaultValue: DataTypes.NOW
     },
     admin: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false
+    },
+    verified: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
         defaultValue: false
