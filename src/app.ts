@@ -11,7 +11,7 @@ const INSECURE_PORT = process.env.INSECURE_PORT || 80
 const SECURE_PORT = process.env.SECURE_PORT || 443;
 const HOST = process.env.HOST || '0.0.0.0';
 
-const certsPath = process.env.CERTS_PATH  || '/etc/letsencrypt/live/anewhttpsproxy.zapto.org';
+const certsPath = process.env.CERTS_PATH  || '/etc/letsencrypt/live/api.vintedbot.co.uk';
 const privKeyPath = `${certsPath}/privkey.pem`;
 const certPath = `${certsPath}/cert.pem`;
 
@@ -40,12 +40,8 @@ app.use(function(req, res, next) {
 });
 
 const allowedOrigins = [
-  'http://vinted-bot-frontend-react-app.s3.eu-west-2.amazonaws.com',
-  'https://vinted-bot-frontend-react-app.s3.eu-west-2.amazonaws.com',
-  'http://d1velgrd8uxzgd.cloudfront.net',
-  'https://d1velgrd8uxzgd.cloudfront.net',
-  'https://vintedbot.co.uk',
-  'http://vintedbot.co.uk',
+  'http://portal.vintedbot.com',
+  'https://portal.vintedbot.com',
   'http://localhost:3000'
 ];
 
