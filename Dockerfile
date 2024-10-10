@@ -26,6 +26,9 @@ WORKDIR /usr/src/app
 # Copy package.json and package-lock.json to install only production dependencies
 COPY package*.json ./
 
+# For healthcheck
+RUN apk add --no-cache curl
+
 # Install only production dependencies
 RUN npm install --only=production
 
