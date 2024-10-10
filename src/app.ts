@@ -44,7 +44,7 @@ app.use('/users', userRoutes);
 app.use('/admin', adminRoutes);
 
 app.get('/', (req, res) => {
-  res.status(200).json({ msg: 'Healthy' });
+  res.status(200).json({ status: 'healthy' });
 });
 
 // Test database connection and sync
