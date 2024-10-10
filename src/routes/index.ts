@@ -48,7 +48,7 @@ const startTask = (alert_id: number) => {
 
 Alerts.findAll().then((alerts) => {
     alerts.forEach((result) => {
-        jobManager.scheduleJob(result.id, notificationFreqToCron(result.notification_frequency), startTask(result.id));
+        jobManager.scheduleJob(result.id, notificationFreqToCron(result.notification_frequency), () => startTask(result.id));
     });
 }).catch((error) => {
     console.error('Error fetching results:', error);
@@ -435,7 +435,7 @@ router.post('/create-alert', authenticateToken, async (req:any, res:any) => {
             startTask(alert.id);
 
             // Then create the job
-            jobManager.scheduleJob(alert.id, notificationFreqToCron(alert.notification_frequency), startTask(alert.id));
+            jobManager.scheduleJob(alert.id, notificationFreqToCron(alert.notification_frequency), () => startTask(alert.id));
             return res.status(200).json({});
             
         } catch (error) {
