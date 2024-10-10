@@ -59,6 +59,9 @@ router.use(express.json());
 
 
 router.post('/password-update', authenticateToken, async (req: any, res: any) => {
+    try {
+        
+   
     const user = await User.findOne({where: {id: req.user.id}});
     if(!user) return res.status(403).json({});
 
@@ -72,6 +75,11 @@ router.post('/password-update', authenticateToken, async (req: any, res: any) =>
 
     await user.save();
     return res.status(204).json({});
+} catch (error) {
+    return res.status(500).json({
+        error: (error as Error).message
+    });
+}
 });
 
 function sendErrorPage(res: any, message: string) {
@@ -183,6 +191,8 @@ function sendSuccessPage(res: any) {
 }
 
 router.get('/auth-email', async (req: any, res: any) => {
+    try {
+
     // Get token from param
     const token = req.query.token;
 
@@ -216,12 +226,16 @@ router.get('/auth-email', async (req: any, res: any) => {
     await user.save();
 
     sendSuccessPage(res);
-});
+} catch (error) {
+    console.error('Error verifying email:', error);
+    sendErrorPage(res, 'Internal server error');
+}});
 
 router.post('/register', async (req:any, res:any) => {
+    try {
+
     const RESEND_CREDS = await getSecretValue("RESEND_API_KEY") || process.env.RESEND_API_KEY;
 
-    try {
         const {name,email,password} = req.body;
 
         const user = await User.create({name,email,password,created_at: new Date(), admin:false, verified: false});
@@ -324,6 +338,8 @@ router.post('/register', async (req:any, res:any) => {
 
 // Refresh token route
 router.post('/token', async (req: any, res: any) => {
+    try {
+        
     const { token }: {token: string} = req.body;
     if (!token) return res.status(401).json({});
 
@@ -346,6 +362,11 @@ router.post('/token', async (req: any, res: any) => {
     const accessToken = await generateAccessToken(user.id, user.email);
 
     return res.json({ accessToken });
+} catch (error) {
+        return res.status(500).json({
+            error: (error as Error).message
+        });
+    }
 
 });
 
@@ -395,6 +416,7 @@ const validateNotificationFrequency = (notificationFrequency: number) =>{
 }
 
 router.post('/create-alert', authenticateToken, async (req:any, res:any) => {
+    try {
     const alert: CreateAlert = req.body;
 
     if(!validateNotificationFrequency(alert.notificationFrequency)) {
@@ -451,9 +473,14 @@ router.post('/create-alert', authenticateToken, async (req:any, res:any) => {
             error: (error as Error).message
         });
     });
-});
+} catch {
+    return res.status(500).json({
+        error: 'Internal server error'
+    });
+}});
 
-router.delete('/delete-alert', authenticateToken, (req:any, res) => {
+router.delete('/delete-alert', authenticateToken, (req:any, res:any) => {
+    try {
     Alerts.destroy({where: {id: req.body.id, user_id: req.user.id}}).then(() => {
         jobManager.cancelJob(req.body.id);
         return res.status(200).json({});
@@ -462,9 +489,15 @@ router.delete('/delete-alert', authenticateToken, (req:any, res) => {
             error: (error as Error).message
         });
     });
+} catch {
+    return res.status(500).json({
+        error: 'Internal server error'
+    });
+}
 });
 
-router.get('/get-alerts', authenticateToken, (req:any, res) => {
+router.get('/get-alerts', authenticateToken, (req:any, res:any) => {
+    try {
     Alerts.findAll({
         where: {user_id: req.user.id}
     }
@@ -475,9 +508,14 @@ router.get('/get-alerts', authenticateToken, (req:any, res) => {
             error: (error as Error).message
         });
     });
-});
+} catch {
+    return res.status(500).json({
+        error: 'Internal server error'
+    });
+}});
 
 router.get('/get-mapping', authenticateToken, (req:any, res:any) => {
+    try {
     // return res.json(CODE_MAPPING);
     Mapping.findOne().then((mapping) => {
         return res.json(mapping);
@@ -486,9 +524,15 @@ router.get('/get-mapping', authenticateToken, (req:any, res:any) => {
             error: (error as Error).message
         });
     });
+} catch {
+    return res.status(500).json({
+        error: 'Internal server error'
+    });
+}
 });
 
 router.get('/get-results', authenticateToken, async (req:any, res:any) => {
+    try {
     // Get all alerts for the user
     const alerts = await Alerts.findAll({where: {user_id: req.user.id}});
     if (!alerts) return res.status(404).json({});
@@ -499,9 +543,15 @@ router.get('/get-results', authenticateToken, async (req:any, res:any) => {
     }));
 
     return res.json(results);
+} catch {
+    return res.status(500).json({
+        error: 'Internal server error'
+    });
+}
 });
 
-router.put('/update-mapping', authenticateToken, (req, res) => {
+router.put('/update-mapping', authenticateToken, (req:any, res:any) => {
+    try {
     Mapping.update(req.body, {where: {id: 1}}).then(() => {
         return res.status(204).json({});
     }).catch((error) => {
@@ -509,9 +559,15 @@ router.put('/update-mapping', authenticateToken, (req, res) => {
             error: (error as Error).message
         });
     });
+} catch {
+    return res.status(500).json({
+        error: 'Internal server error'
+    });
+}
 });
 
-router.post('/update-results', authenticateToken, (req, res) => {
+router.post('/update-results', authenticateToken, (req:any, res:any) => {
+    try {
     Results.create(req.body).then((results) => {
         return res.status(201).json(results);
     }).catch((error) => {
@@ -519,6 +575,11 @@ router.post('/update-results', authenticateToken, (req, res) => {
             error: (error as Error).message
         });
     });
+} catch {
+    return res.status(500).json({
+        error: 'Internal server error'
+    });
+}
 });
 
 export default router;
