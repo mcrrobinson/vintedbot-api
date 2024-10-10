@@ -43,6 +43,10 @@ app.options('*', cors());
 app.use('/users', userRoutes);
 app.use('/admin', adminRoutes);
 
+app.get('/', (req, res) => {
+  res.status(200).json({ msg: 'Healthy' });
+});
+
 // Test database connection and sync
 db.sequelize.authenticate()
   .then(() => {

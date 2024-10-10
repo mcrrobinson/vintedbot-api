@@ -3,11 +3,23 @@ import Session from '../models/sessions.model';
 import Alerts from '../models/alerts.model';
 import Results from '../models/results.model';
 import Mapping from '../models/mapping.model';
-import { Router } from 'express';
+import {
+    Router
+} from 'express';
 import express from 'express';
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
-import { ACCESS_TOKEN_SECRET, authenticateToken, generateAccessToken, generateEmailToken, generateRefreshToken, getAccessToken, getUserFromAccessToken, REFRESH_TOKEN_SECRET, getSecretValue } from './helper';
+import {
+    ACCESS_TOKEN_SECRET,
+    authenticateToken,
+    generateAccessToken,
+    generateEmailToken,
+    generateRefreshToken,
+    getAccessToken,
+    getUserFromAccessToken,
+    REFRESH_TOKEN_SECRET,
+    getSecretValue
+} from './helper';
 const jobManager = require('./jobManager');
 
 dotenv.config();
@@ -22,7 +34,7 @@ const notificationFreqToCron = (notificationFrequency: number) => {
         case 2: // 30 minutes
             return '*/30 * * * *';
         case 3: // 1 hour
-            return  '0 * * * *';
+            return '0 * * * *';
         case 4: // 1 day
             return '0 0 * * *';
         default:
@@ -32,18 +44,18 @@ const notificationFreqToCron = (notificationFrequency: number) => {
 
 const startTask = (alert_id: number) => {
     fetch(`https://3aw6qin8ol.execute-api.eu-west-2.amazonaws.com/Prod/update-results/${alert_id}`)
-    .then((response) => {
-        if (!response.ok) {
-            throw new Error('Failed to fetch data');
-        }
-        return response.json();
-    })
-    .then((data) => {
-        console.log('Data fetched:', data);
-    })
-    .catch((error) => {
-        console.error('Error fetching data:', error);
-    });
+        .then((response) => {
+            if (!response.ok) {
+                throw new Error('Failed to fetch data');
+            }
+            return response.json();
+        })
+        .then((data) => {
+            console.log('Data fetched:', data);
+        })
+        .catch((error) => {
+            console.error('Error fetching data:', error);
+        });
 };
 
 Alerts.findAll().then((alerts) => {
@@ -60,26 +72,33 @@ router.use(express.json());
 
 router.post('/password-update', authenticateToken, async (req: any, res: any) => {
     try {
-        
-   
-    const user = await User.findOne({where: {id: req.user.id}});
-    if(!user) return res.status(403).json({});
 
-    const { currentPassword, newPassword } = req.body;
-    if (!currentPassword || !newPassword) return res.status(400).json({});
 
-    // @ts-ignore
-    if (!user.validPassword(currentPassword)) return res.status(403).json({});
+        const user = await User.findOne({
+            where: {
+                id: req.user.id
+            }
+        });
+        if (!user) return res.status(403).json({});
 
-    user.password = newPassword
+        const {
+            currentPassword,
+            newPassword
+        } = req.body;
+        if (!currentPassword || !newPassword) return res.status(400).json({});
 
-    await user.save();
-    return res.status(204).json({});
-} catch (error) {
-    return res.status(500).json({
-        error: (error as Error).message
-    });
-}
+        // @ts-ignore
+        if (!user.validPassword(currentPassword)) return res.status(403).json({});
+
+        user.password = newPassword
+
+        await user.save();
+        return res.status(204).json({});
+    } catch (error) {
+        return res.status(500).json({
+            error: (error as Error).message
+        });
+    }
 });
 
 function sendErrorPage(res: any, message: string) {
@@ -193,52 +212,68 @@ function sendSuccessPage(res: any) {
 router.get('/auth-email', async (req: any, res: any) => {
     try {
 
-    // Get token from param
-    const token = req.query.token;
+        // Get token from param
+        const token = req.query.token;
 
-    // Check if token is valid
-    if (!token) return res.status(403).json({});
+        // Check if token is valid
+        if (!token) return res.status(403).json({});
 
-    // Decode token
-    // Get email from token
-    let email: string;
-    try {
-        const decoded = jwt.verify(token, ACCESS_TOKEN_SECRET);
-        email = (decoded as any).email;
+        // Decode token
+        // Get email from token
+        let email: string;
+        try {
+            const decoded = jwt.verify(token, ACCESS_TOKEN_SECRET);
+            email = (decoded as any).email;
 
-        if (!email) {
-            sendErrorPage(res, 'Email not found in token');
+            if (!email) {
+                sendErrorPage(res, 'Email not found in token');
+                return;
+            }
+
+        } catch (error) {
+            console.error('Error decoding token:', error);
+            sendErrorPage(res, 'Invalid token');
             return;
         }
 
+        const user = await User.findOne({
+            where: {
+                email
+            }
+        });
+        if (!user) {
+            sendErrorPage(res, 'User not found');
+            return;
+        }
+        user.verified = true;
+        await user.save();
+
+        sendSuccessPage(res);
     } catch (error) {
-        console.error('Error decoding token:', error);
-        sendErrorPage(res, 'Invalid token');
-        return;
+        console.error('Error verifying email:', error);
+        sendErrorPage(res, 'Internal server error');
     }
+});
 
-    const user = await User.findOne({where: {email}});
-    if (!user) {
-        sendErrorPage(res, 'User not found');
-        return;
-    }
-    user.verified = true;
-    await user.save();
-
-    sendSuccessPage(res);
-} catch (error) {
-    console.error('Error verifying email:', error);
-    sendErrorPage(res, 'Internal server error');
-}});
-
-router.post('/register', async (req:any, res:any) => {
+router.post('/register', async (req: any, res: any) => {
     try {
 
-    const RESEND_CREDS = await getSecretValue("RESEND_API_KEY") || process.env.RESEND_API_KEY;
+        const RESEND_CREDS = await getSecretValue("RESEND_API_KEY") || process.env.RESEND_API_KEY;
 
-        const {name,email,password} = req.body;
+        const {
+            name,
+            email,
+            password
+        } = req.body;
 
-        const user = await User.create({name,email,password,created_at: new Date(), admin:false, verified: false});
+        const user = await User.create({
+            name,
+            email,
+            password,
+            created_at: new Date(),
+            admin: false,
+            verified: false
+        });
         const emailToken = await generateEmailToken(email);
 
         const emailHtml = `
@@ -328,7 +363,9 @@ router.post('/register', async (req:any, res:any) => {
             throw new Error(`error sending email: ${response.message}`);
         }
 
-        res.status(201).json({message: 'User created'});
+        res.status(201).json({
+            message: 'User created'
+        });
     } catch (error) {
         return res.status(400).json({
             error: (error as Error).message
@@ -339,30 +376,44 @@ router.post('/register', async (req:any, res:any) => {
 // Refresh token route
 router.post('/token', async (req: any, res: any) => {
     try {
-        
-    const { token }: {token: string} = req.body;
-    if (!token) return res.status(401).json({});
 
-    // Check if the token is in db
-    const session = await Session.findOne({where: {refresh_token: token}})
-    if (!session) return res.status(403).json({});
+        const {
+            token
+        }: {
+            token: string
+        } = req.body;
+        if (!token) return res.status(401).json({});
 
-    // Get user associated
-    const user = await User.findOne({where: {id: session.user_id}});
-    if (!user) return res.status(403).json({});
+        // Check if the token is in db
+        const session = await Session.findOne({
+            where: {
+                refresh_token: token
+            }
+        })
+        if (!session) return res.status(403).json({});
 
-    await new Promise((resolve, reject) => {
-        jwt.verify(token, REFRESH_TOKEN_SECRET, (err: any, decoded: any) => {
-            if (err) return reject(err);
-            resolve(decoded);
+        // Get user associated
+        const user = await User.findOne({
+            where: {
+                id: session.user_id
+            }
         });
-    });
+        if (!user) return res.status(403).json({});
 
-    // Generate new access token
-    const accessToken = await generateAccessToken(user.id, user.email);
+        await new Promise((resolve, reject) => {
+            jwt.verify(token, REFRESH_TOKEN_SECRET, (err: any, decoded: any) => {
+                if (err) return reject(err);
+                resolve(decoded);
+            });
+        });
 
-    return res.json({ accessToken });
-} catch (error) {
+        // Generate new access token
+        const accessToken = await generateAccessToken(user.id, user.email);
+
+        return res.json({
+            accessToken
+        });
+    } catch (error) {
         return res.status(500).json({
             error: (error as Error).message
         });
@@ -372,8 +423,12 @@ router.post('/token', async (req: any, res: any) => {
 
 router.post('/login', async (req: any, res: any) => {
     try {
-        const user = await User.findOne({where: {email: req.body.email}});
-        if(!user) {
+        const user = await User.findOne({
+            where: {
+                email: req.body.email
+            }
+        });
+        if (!user) {
             return await res.status(404).json({
                 message: 'User not found'
             });
@@ -385,11 +440,15 @@ router.post('/login', async (req: any, res: any) => {
                 message: 'Invalid password'
             });
         }
-        
+
         const accessToken = await generateAccessToken(user.id, user.email);
         const refreshToken = await generateRefreshToken(user.id, user.email);
 
-        return res.json({ accessToken, refreshToken, admin: user.admin });
+        return res.json({
+            accessToken,
+            refreshToken,
+            admin: user.admin
+        });
     } catch (error) {
         return res.status(500).json({
             error: (error as Error).message
@@ -409,177 +468,212 @@ interface CreateAlert {
     notificationFrequency: number;
 }
 
-const validateNotificationFrequency = (notificationFrequency: number) =>{
+const validateNotificationFrequency = (notificationFrequency: number) => {
 
     // We are currently allowing 30 minutes, 1 hour and 1 day. 
     return notificationFrequency >= 2 && notificationFrequency <= 4;
 }
 
-router.post('/create-alert', authenticateToken, async (req:any, res:any) => {
+router.post('/create-alert', authenticateToken, async (req: any, res: any) => {
     try {
-    const alert: CreateAlert = req.body;
+        const alert: CreateAlert = req.body;
 
-    if(!validateNotificationFrequency(alert.notificationFrequency)) {
-        return res.status(400).json({error: 'Invalid notification frequency'});
+        if (!validateNotificationFrequency(alert.notificationFrequency)) {
+            return res.status(400).json({
+                error: 'Invalid notification frequency'
+            });
+        }
+
+        const accessToken = await getAccessToken(req);
+        if (!accessToken) return res.status(401).json({});
+
+        const user = await getUserFromAccessToken(accessToken);
+        if (!user) return res.status(403).json({});
+
+        const alertCount = await Alerts.count({
+            where: {
+                user_id: user.id
+            }
+        });
+        if (alertCount >= 5) return res.status(400).json({
+            error: 'Too many alerts'
+        });
+
+        // Create an alert, then a cron. If the cron fails to create, undo the creation of the alert.
+        Alerts.create({
+            name: alert.name,
+            category: alert.category,
+            brands: alert.brands,
+            condition: alert.conditions,
+            min_price: alert.priceMin,
+            max_price: alert.priceMax,
+            sizes: alert.sizes,
+            keywords: alert.keywords,
+            notification_frequency: alert.notificationFrequency,
+            user_id: user.id,
+            created_at: new Date(),
+            colour: [],
+            category_friendly: '',
+            brand_friendly: [],
+            condition_friendly: [],
+            // Add any other required properties here
+        }).then((alert) => {
+
+            try {
+                // Start task first
+                startTask(alert.id);
+
+                // Then create the job
+                jobManager.scheduleJob(alert.id, notificationFreqToCron(alert.notification_frequency), () => startTask(alert.id));
+                return res.status(200).json({});
+
+            } catch (error) {
+                console.error('Error creating job:', error);
+                Alerts.destroy({
+                    where: {
+                        id: alert.id
+                    }
+                });
+                return res.status(500).json({
+                    error: (error as Error).message
+                });
+            }
+
+        }).catch((error) => {
+            return res.status(400).json({
+                error: (error as Error).message
+            });
+        });
+    } catch {
+        return res.status(500).json({
+            error: 'Internal server error'
+        });
     }
+});
 
-    const accessToken = await getAccessToken(req);
-    if(!accessToken) return res.status(401).json({});
-
-    const user = await getUserFromAccessToken(accessToken);
-    if(!user) return res.status(403).json({});
-
-    const alertCount = await Alerts.count({where: {user_id: user.id}});
-    if (alertCount >= 5) return res.status(400).json({error: 'Too many alerts'});
-
-    // Create an alert, then a cron. If the cron fails to create, undo the creation of the alert.
-    Alerts.create({
-        name: alert.name,
-        category: alert.category,
-        brands: alert.brands,
-        condition: alert.conditions,
-        min_price: alert.priceMin,
-        max_price: alert.priceMax,
-        sizes: alert.sizes,
-        keywords: alert.keywords,
-        notification_frequency: alert.notificationFrequency,
-        user_id: user.id,
-        created_at: new Date(),
-        colour: [],
-        category_friendly: '',
-        brand_friendly: [],
-        condition_friendly: [],
-        // Add any other required properties here
-    }).then((alert) => {
-
-        try {
-            // Start task first
-            startTask(alert.id);
-
-            // Then create the job
-            jobManager.scheduleJob(alert.id, notificationFreqToCron(alert.notification_frequency), () => startTask(alert.id));
+router.delete('/delete-alert', authenticateToken, (req: any, res: any) => {
+    try {
+        Alerts.destroy({
+            where: {
+                id: req.body.id,
+                user_id: req.user.id
+            }
+        }).then(() => {
+            jobManager.cancelJob(req.body.id);
             return res.status(200).json({});
-            
-        } catch (error) {
-            console.error('Error creating job:', error);
-            Alerts.destroy({where: {id: alert.id}});
+        }).catch((error) => {
             return res.status(500).json({
                 error: (error as Error).message
             });
-        }
-    
-    }).catch((error) => {
-        return res.status(400).json({
-            error: (error as Error).message
         });
-    });
-} catch {
-    return res.status(500).json({
-        error: 'Internal server error'
-    });
-}});
-
-router.delete('/delete-alert', authenticateToken, (req:any, res:any) => {
-    try {
-    Alerts.destroy({where: {id: req.body.id, user_id: req.user.id}}).then(() => {
-        jobManager.cancelJob(req.body.id);
-        return res.status(200).json({});
-    }).catch((error) => {
+    } catch {
         return res.status(500).json({
-            error: (error as Error).message
+            error: 'Internal server error'
         });
-    });
-} catch {
-    return res.status(500).json({
-        error: 'Internal server error'
-    });
-}
-});
-
-router.get('/get-alerts', authenticateToken, (req:any, res:any) => {
-    try {
-    Alerts.findAll({
-        where: {user_id: req.user.id}
     }
-    ).then((alerts) => {
-        return res.json(alerts);
-    }).catch((error) => {
-        return res.status(500).json({
-            error: (error as Error).message
-        });
-    });
-} catch {
-    return res.status(500).json({
-        error: 'Internal server error'
-    });
-}});
-
-router.get('/get-mapping', authenticateToken, (req:any, res:any) => {
-    try {
-    // return res.json(CODE_MAPPING);
-    Mapping.findOne().then((mapping) => {
-        return res.json(mapping);
-    }).catch((error) => {
-        return res.status(500).json({
-            error: (error as Error).message
-        });
-    });
-} catch {
-    return res.status(500).json({
-        error: 'Internal server error'
-    });
-}
 });
 
-router.get('/get-results', authenticateToken, async (req:any, res:any) => {
+router.get('/get-alerts', authenticateToken, (req: any, res: any) => {
     try {
-    // Get all alerts for the user
-    const alerts = await Alerts.findAll({where: {user_id: req.user.id}});
-    if (!alerts) return res.status(404).json({});
-
-    // Get all results for the alerts
-    const results = await Promise.all(alerts.map(async (alert) => {
-        return {alert, results: await Results.findAll({where: {alert_id: alert.id}})};
-    }));
-
-    return res.json(results);
-} catch {
-    return res.status(500).json({
-        error: 'Internal server error'
-    });
-}
-});
-
-router.put('/update-mapping', authenticateToken, (req:any, res:any) => {
-    try {
-    Mapping.update(req.body, {where: {id: 1}}).then(() => {
-        return res.status(204).json({});
-    }).catch((error) => {
+        Alerts.findAll({
+            where: {
+                user_id: req.user.id
+            }
+        }).then((alerts) => {
+            return res.json(alerts);
+        }).catch((error) => {
+            return res.status(500).json({
+                error: (error as Error).message
+            });
+        });
+    } catch {
         return res.status(500).json({
-            error: (error as Error).message
+            error: 'Internal server error'
         });
-    });
-} catch {
-    return res.status(500).json({
-        error: 'Internal server error'
-    });
-}
+    }
 });
 
-router.post('/update-results', authenticateToken, (req:any, res:any) => {
+router.get('/get-mapping', authenticateToken, (req: any, res: any) => {
     try {
-    Results.create(req.body).then((results) => {
-        return res.status(201).json(results);
-    }).catch((error) => {
-        return res.status(400).json({
-            error: (error as Error).message
+        // return res.json(CODE_MAPPING);
+        Mapping.findOne().then((mapping) => {
+            return res.json(mapping);
+        }).catch((error) => {
+            return res.status(500).json({
+                error: (error as Error).message
+            });
         });
-    });
-} catch {
-    return res.status(500).json({
-        error: 'Internal server error'
-    });
-}
+    } catch {
+        return res.status(500).json({
+            error: 'Internal server error'
+        });
+    }
+});
+
+router.get('/get-results', authenticateToken, async (req: any, res: any) => {
+    try {
+        // Get all alerts for the user
+        const alerts = await Alerts.findAll({
+            where: {
+                user_id: req.user.id
+            }
+        });
+        if (!alerts) return res.status(404).json({});
+
+        // Get all results for the alerts
+        const results = await Promise.all(alerts.map(async (alert) => {
+            return {
+                alert,
+                results: await Results.findAll({
+                    where: {
+                        alert_id: alert.id
+                    }
+                })
+            };
+        }));
+
+        return res.json(results);
+    } catch {
+        return res.status(500).json({
+            error: 'Internal server error'
+        });
+    }
+});
+
+router.put('/update-mapping', authenticateToken, (req: any, res: any) => {
+    try {
+        Mapping.update(req.body, {
+            where: {
+                id: 1
+            }
+        }).then(() => {
+            return res.status(204).json({});
+        }).catch((error) => {
+            return res.status(500).json({
+                error: (error as Error).message
+            });
+        });
+    } catch {
+        return res.status(500).json({
+            error: 'Internal server error'
+        });
+    }
+});
+
+router.post('/update-results', authenticateToken, (req: any, res: any) => {
+    try {
+        Results.create(req.body).then((results) => {
+            return res.status(201).json(results);
+        }).catch((error) => {
+            return res.status(400).json({
+                error: (error as Error).message
+            });
+        });
+    } catch {
+        return res.status(500).json({
+            error: 'Internal server error'
+        });
+    }
 });
 
 export default router;
