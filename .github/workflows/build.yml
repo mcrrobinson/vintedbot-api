@@ -8,13 +8,12 @@ on:
 env:
   AWS_REGION: eu-west-2
   ECR_REPOSITORY: vinted-bot/api
-  ECS_SERVICE: VintedECSCluster-ECSService-boeWFqh4dhFd
+  ECS_SERVICE: vinted-bot-api-ECSService-V0Oc1E3c0Yql
   ECS_CLUSTER: VintedCluster
   ECS_TASK_DEFINITION: .github/workflows/task-definition.json
   CONTAINER_NAME: vinted-bot-api
   AWS_ACCOUNT_ID: 224164455438
   IMAGE_URI: '224164455438.dkr.ecr.eu-west-2.amazonaws.com/vinted-bot/api:latest'
-
 
 jobs:
   build-and-push:
