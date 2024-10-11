@@ -20,6 +20,7 @@ import {
     REFRESH_TOKEN_SECRET,
     getSecretValue
 } from './helper';
+import fs from 'fs';
 const jobManager = require('./jobManager');
 
 dotenv.config();
@@ -42,6 +43,7 @@ const notificationFreqToCron = (notificationFrequency: number) => {
     }
 }
 
+const CODE_MAPPING = JSON.parse(fs.readFileSync('src/mapping.json', 'utf8'));
 const startTask = (alert_id: number) => {
     fetch(`https://3aw6qin8ol.execute-api.eu-west-2.amazonaws.com/Prod/update-results/${alert_id}`)
         .then(async (response) => {
@@ -599,14 +601,7 @@ router.get('/get-alerts', authenticateToken, (req: any, res: any) => {
 
 router.get('/get-mapping', authenticateToken, (req: any, res: any) => {
     try {
-        // return res.json(CODE_MAPPING);
-        Mapping.findOne().then((mapping) => {
-            return res.json(mapping);
-        }).catch((error) => {
-            return res.status(500).json({
-                error: (error as Error).message
-            });
-        });
+        return res.json(CODE_MAPPING);
     } catch {
         return res.status(500).json({
             error: 'Internal server error'
