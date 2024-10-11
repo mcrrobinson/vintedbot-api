@@ -50,7 +50,6 @@ app.get('/', (req, res) => {
 // Test database connection and sync
 db.sequelize.authenticate()
   .then(() => {
-    console.log('Database connected...');
     return db.sequelize.sync();
   })
   .then(() => {

@@ -181,7 +181,6 @@ router.get("/get-alerts/:id", authenticateAdmin, async (req, res) => {
 router.get("/get-alerts", authenticateAdmin, async (req, res) => {
     try {
         const alerts = await Alerts.findAll();
-        console.log(alerts);
         res.json(alerts);
     } catch (error:any) {
         res.status(500).json({ error: error.message });

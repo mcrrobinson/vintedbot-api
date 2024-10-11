@@ -42,6 +42,8 @@ Resources:
       Memory: '2048'
       ExecutionRoleArn: 'arn:aws:iam::224164455438:role/ecsTaskExecutionRole'
       TaskRoleArn: 'arn:aws:iam::224164455438:role/ecsTaskExecutionRole'
+      MinimumHealthyPercent: 100
+      MaximumPercent: 200
       ContainerDefinitions:
         - Name: 'vinted-bot-api'
           Image: '224164455438.dkr.ecr.eu-west-2.amazonaws.com/vinted-bot/api'

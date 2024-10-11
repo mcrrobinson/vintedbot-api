@@ -44,17 +44,21 @@ const notificationFreqToCron = (notificationFrequency: number) => {
 
 const startTask = (alert_id: number) => {
     fetch(`https://3aw6qin8ol.execute-api.eu-west-2.amazonaws.com/Prod/update-results/${alert_id}`)
-        .then((response) => {
+        .then(async (response) => {
+            let jRes: {success: boolean, message:string} = await response.json();
+
             if (!response.ok) {
-                throw new Error('Failed to fetch data');
+                throw new Error(`response not ok, got ${jRes.message}`);
             }
-            return response.json();
-        })
-        .then((data) => {
-            console.log('Data fetched:', data);
+
+            if(jRes.success === false) {
+                throw new Error(`response not successful, got ${jRes.message}`);
+            }
+
+            console.log(`Successfully fetched results for alert ${alert_id}`);
         })
         .catch((error) => {
-            console.error('Error fetching data:', error);
+            console.error('error fetching data,', error);
         });
 };
 

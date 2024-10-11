@@ -3,8 +3,7 @@
         {
             "name": "vinted-bot-api",
             "image": "224164455438.dkr.ecr.eu-west-2.amazonaws.com/vinted-bot/api",
-            "cpu": 256,
-            "memory": 512,
+            "cpu": 0,
             "portMappings": [
                 {
                     "name": "vinted-bot-api-80-tcp",
@@ -14,12 +13,7 @@
                 }
             ],
             "essential": true,
-            "environment": [
-                {
-                    "name": "NODE_ENV",
-                    "value": "production"
-                }
-            ],
+            "environment": [],
             "environmentFiles": [],
             "mountPoints": [],
             "volumesFrom": [],
@@ -34,6 +28,15 @@
                 },
                 "secretOptions": []
             },
+            "healthCheck": {
+                "command": [
+                    "CMD-SHELL",
+                    "curl -f http://localhost/ || exit 1"
+                ],
+                "interval": 30,
+                "timeout": 5,
+                "retries": 3
+            },
             "systemControls": [],
             "credentialSpecs": []
         }
@@ -47,7 +50,7 @@
     "requiresCompatibilities": [
         "FARGATE"
     ],
-    "cpu": "256",
-    "memory": "512",
+    "cpu": "1024",
+    "memory": "2048",
     "tags": []
 }
