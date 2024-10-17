@@ -22,6 +22,7 @@ import {
 } from './helper';
 import fs from 'fs';
 const jobManager = require('./jobManager');
+const CODE_MAPPING = JSON.parse(fs.readFileSync('src/mapping.json', 'utf8'));
 
 dotenv.config();
 const router = Router();
@@ -43,7 +44,6 @@ const notificationFreqToCron = (notificationFrequency: number) => {
     }
 }
 
-const CODE_MAPPING = JSON.parse(fs.readFileSync('src/mapping.json', 'utf8'));
 const startTask = (alert_id: number) => {
     fetch(`https://3aw6qin8ol.execute-api.eu-west-2.amazonaws.com/Prod/update-results/${alert_id}`)
         .then(async (response) => {

@@ -33,6 +33,7 @@ RUN apk add --no-cache curl
 RUN npm install --only=production
 
 COPY --from=builder /usr/src/app/dist ./src
+COPY src/mapping.json ./src
 
 # Expose the ports the app runs on
 EXPOSE 80
