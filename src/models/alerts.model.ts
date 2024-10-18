@@ -1,6 +1,11 @@
 import {DataTypes,Model,Optional, SmallIntegerDataType} from 'sequelize';
 import sequelize from '../config/database';
 
+interface Include {
+    word: string;
+    must_be_included: boolean;
+}
+
 interface AlertAttributes {
     id: number;
     created_at: Date;
@@ -10,6 +15,8 @@ interface AlertAttributes {
     sizes: number[];
     condition: number[];
     keywords: string[];
+    includes: Include[];
+    excluded: string[];
     brands: number[];
     user_id: number;
     colour: number[];
@@ -32,6 +39,8 @@ class Alerts extends Model < AlertAttributes, UserCreationAttributes > implement
     public sizes!: number[];
     public condition!: number[];
     public keywords!: string[];
+    public includes!: Include[];
+    public excluded!: string[];
     public brands!: number[];
     public user_id!: number;
     public colour!: number[];
@@ -74,7 +83,15 @@ Alerts.init({
         type: DataTypes.ARRAY(DataTypes.INTEGER),
         allowNull: false
     },
-    keywords: {
+    keywords:{
+        type: DataTypes.ARRAY(DataTypes.STRING),
+        allowNull: false
+    },
+    includes: {
+        type: DataTypes.JSON,
+        allowNull: false
+    },
+    excluded: {
         type: DataTypes.ARRAY(DataTypes.STRING),
         allowNull: false
     },

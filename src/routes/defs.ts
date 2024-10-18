@@ -249,7 +249,7 @@ export interface Alert {
     max_price: number;
     sizes: number[];
     condition: number[];
-    keywords: string[];
+    includes: string[];
     brands: number[];
     user_id: number;
     colour: number[];

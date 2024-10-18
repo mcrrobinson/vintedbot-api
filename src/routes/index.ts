@@ -27,6 +27,9 @@ const CODE_MAPPING = JSON.parse(fs.readFileSync('src/mapping.json', 'utf8'));
 dotenv.config();
 const router = Router();
 
+const NODE_ENV = process.env.NODE_ENV;
+
+
 const notificationFreqToCron = (notificationFrequency: number) => {
     switch (notificationFrequency) {
         case 0: // 5 minutes
@@ -64,13 +67,15 @@ const startTask = (alert_id: number) => {
         });
 };
 
-Alerts.findAll().then((alerts) => {
-    alerts.forEach((result) => {
-        jobManager.scheduleJob(result.id, notificationFreqToCron(result.notification_frequency), () => startTask(result.id));
+if(NODE_ENV === "prod"){
+    Alerts.findAll().then((alerts) => {
+        alerts.forEach((result) => {
+            jobManager.scheduleJob(result.id, notificationFreqToCron(result.notification_frequency), () => startTask(result.id));
+        });
+    }).catch((error) => {
+        console.error('Error fetching results:', error);
     });
-}).catch((error) => {
-    console.error('Error fetching results:', error);
-});
+}
 
 // Middleware
 router.use(express.json());
@@ -462,6 +467,11 @@ router.post('/login', async (req: any, res: any) => {
     }
 });
 
+interface Include {
+    word: string;
+    must_be_included: boolean;
+}
+
 interface CreateAlert {
     name: string;
     category: number;
@@ -470,7 +480,8 @@ interface CreateAlert {
     priceMin: number;
     priceMax: number;
     sizes: number[];
-    keywords: string[];
+    includes: Include[];
+    excluded: string[];
     notificationFrequency: number;
 }
 
@@ -505,6 +516,8 @@ router.post('/create-alert', authenticateToken, async (req: any, res: any) => {
             error: 'Too many alerts'
         });
 
+        console.log(alert);
+
         // Create an alert, then a cron. If the cron fails to create, undo the creation of the alert.
         Alerts.create({
             name: alert.name,
@@ -514,7 +527,9 @@ router.post('/create-alert', authenticateToken, async (req: any, res: any) => {
             min_price: alert.priceMin,
             max_price: alert.priceMax,
             sizes: alert.sizes,
-            keywords: alert.keywords,
+            keywords: [], // Deprecated
+            includes: alert.includes,
+            excluded: alert.excluded,
             notification_frequency: alert.notificationFrequency,
             user_id: user.id,
             created_at: new Date(),
