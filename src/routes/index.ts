@@ -54,6 +54,8 @@ const startTask = (alert_id: number) => {
             // get the json response
             return response.json().then((json: {status: boolean, message: string}) => {
                 throw new Error(json.message);
+            }).catch(() => {
+                throw new Error(`Non-JSON response with status ${response.status}`);
             });
         }
         console.log(`Successfully fetched results for alert ${alert_id}`);
@@ -61,7 +63,6 @@ const startTask = (alert_id: number) => {
     .catch((error) => {
         console.error(`Error fetching results for alert ${alert_id}:`, error);
     });
-
 };
 
 if(NODE_ENV === "prod"){
