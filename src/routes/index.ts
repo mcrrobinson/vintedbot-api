@@ -513,7 +513,7 @@ router.post('/create-alert', authenticateToken, async (req: any, res: any) => {
             error: 'Too many alerts'
         });
 
-        console.log(alert);
+        console.log(`Creating alert (${alert.name}) for user ${user.id}`);
 
         // Create an alert, then a cron. If the cron fails to create, undo the creation of the alert.
         Alerts.create({
