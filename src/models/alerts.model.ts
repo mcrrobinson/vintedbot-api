@@ -26,6 +26,7 @@ interface AlertAttributes {
     brand_friendly: string[];
     condition_friendly: string[];
     last_executed: Date | null;
+    results: number[];
 }
 
 interface UserCreationAttributes extends Optional < AlertAttributes, 'id' > {}
@@ -50,6 +51,7 @@ class Alerts extends Model < AlertAttributes, UserCreationAttributes > implement
     public brand_friendly!: string[];
     public condition_friendly!: string[];
     public last_executed!: Date | null;
+    public results!: number[];
 }
 
 Alerts.init({
@@ -130,6 +132,10 @@ Alerts.init({
     last_executed: {
         type: DataTypes.DATE,
         allowNull: true
+    },
+    results: {
+        type: DataTypes.ARRAY(DataTypes.INTEGER),
+        allowNull: false
     }
 }, {
     sequelize,

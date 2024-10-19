@@ -537,6 +537,7 @@ router.post('/create-alert', authenticateToken, async (req: any, res: any) => {
             category_friendly: '',
             brand_friendly: [],
             condition_friendly: [],
+            results: [],
             // Add any other required properties here
         }).then((alert) => {
 
