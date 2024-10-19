@@ -38,5 +38,7 @@ COPY src/mapping.json ./src
 # Expose the ports the app runs on
 EXPOSE 80
 
+ENV NODE_ENV=prod
+
 # Add a script that runs everything
 CMD ["node","src/app.js"]
