@@ -51,12 +51,12 @@ const startTask = (alert_id: number) => {
     fetch(`https://3aw6qin8ol.execute-api.eu-west-2.amazonaws.com/Prod/update-results/${alert_id}`)
     .then((response) => {
         if (!response.ok) {
-            // get the json response
-            return response.json().then((json: {status: boolean, message: string}) => {
-                throw new Error(json.message);
+            return response.text().then((text: string) => {
+                throw new Error(text);
             }).catch(() => {
-                throw new Error(`Non-JSON response with status ${response.status}`);
+                throw new Error(`Non-text response with status ${response.status}`);
             });
+
         }
         console.log(`Successfully fetched results for alert ${alert_id}`);
     })
