@@ -55,17 +55,19 @@ const startTask = async (alert_id: number): Promise<void> => {
         }
         console.log(`Successfully fetched results for alert ${alert_id}`);
     } catch (error) {
-        console.error(`error fetching results for alert ${alert_id}:`, error);
+        const errorMessage = (error instanceof Error && error.message) ? error.message : 'An unknown error occurred';
+        console.error(`error fetching results for alert ${alert_id}:`, errorMessage);
     }
 };
 
 if(NODE_ENV === "prod"){
     Alerts.findAll().then((alerts) => {
-        alerts.forEach((result) => {
+        for (const result of alerts) {
             jobManager.scheduleJob(result.id, notificationFreqToCron(result.notification_frequency), async () => await startTask(result.id));
-        });
+        }
     }).catch((error) => {
-        console.error('Error fetching results:', error);
+        const errorMessage = (error instanceof Error && error.message) ? error.message : 'An unknown error occurred';
+        console.error(`error scheduling alert for alerts:`, errorMessage);
     });
 }
 
