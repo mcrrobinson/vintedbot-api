@@ -47,28 +47,22 @@ const notificationFreqToCron = (notificationFrequency: number) => {
     }
 }
 
-const startTask = (alert_id: number) => {
-    fetch(`https://3aw6qin8ol.execute-api.eu-west-2.amazonaws.com/Prod/update-results/${alert_id}`)
-    .then((response) => {
+const startTask = async (alert_id: number): Promise<void> => {
+    try {
+        const response = await fetch(`https://3aw6qin8ol.execute-api.eu-west-2.amazonaws.com/Prod/update-results/${alert_id}`);
         if (!response.ok) {
-            return response.text().then((text: string) => {
-                throw new Error(text);
-            }).catch(() => {
-                throw new Error(`Non-text response with status ${response.status}`);
-            });
-
+            throw new Error(`got status ${response.status}`);
         }
         console.log(`Successfully fetched results for alert ${alert_id}`);
-    })
-    .catch((error) => {
-        console.error(`Error fetching results for alert ${alert_id}:`, error);
-    });
+    } catch (error) {
+        console.error(`error fetching results for alert ${alert_id}:`, error);
+    }
 };
 
 if(NODE_ENV === "prod"){
     Alerts.findAll().then((alerts) => {
         alerts.forEach((result) => {
-            jobManager.scheduleJob(result.id, notificationFreqToCron(result.notification_frequency), () => startTask(result.id));
+            jobManager.scheduleJob(result.id, notificationFreqToCron(result.notification_frequency), async () => await startTask(result.id));
         });
     }).catch((error) => {
         console.error('Error fetching results:', error);
@@ -537,34 +531,33 @@ router.post('/create-alert', authenticateToken, async (req: any, res: any) => {
             condition_friendly: [],
             results: [],
             // Add any other required properties here
-        }).then((alert) => {
+        }).then(async (alert) => {
 
             try {
                 // Start task first
-                startTask(alert.id);
-
+                await startTask(alert.id);
+        
                 // Then create the job
-                jobManager.scheduleJob(alert.id, notificationFreqToCron(alert.notification_frequency), () => startTask(alert.id));
+                jobManager.scheduleJob(alert.id, notificationFreqToCron(alert.notification_frequency), async () => await startTask(alert.id));
                 return res.status(200).json({});
-
+        
             } catch (error) {
-                console.error('Error creating job:', error);
-                Alerts.destroy({
-                    where: {
-                        id: alert.id
-                    }
-                });
+                console.error('Error creating alert job:', error);
+                await Alerts.destroy({where: {id: alert.id}});
+
                 return res.status(500).json({
                     error: (error as Error).message
                 });
             }
-
+        
         }).catch((error) => {
+            console.error('Error adding alert to database:', error);
             return res.status(400).json({
                 error: (error as Error).message
             });
         });
-    } catch {
+    } catch (error) {
+        console.error('Error creating alert:', error);
         return res.status(500).json({
             error: 'Internal server error'
         });
@@ -586,7 +579,8 @@ router.delete('/delete-alert', authenticateToken, (req: any, res: any) => {
                 error: (error as Error).message
             });
         });
-    } catch {
+    } catch (error) {
+        console.error('Error creating alert:', error);
         return res.status(500).json({
             error: 'Internal server error'
         });
@@ -606,7 +600,8 @@ router.get('/get-alerts', authenticateToken, (req: any, res: any) => {
                 error: (error as Error).message
             });
         });
-    } catch {
+    } catch (error) {
+        console.error('Error creating alert:', error);
         return res.status(500).json({
             error: 'Internal server error'
         });
@@ -616,7 +611,8 @@ router.get('/get-alerts', authenticateToken, (req: any, res: any) => {
 router.get('/get-mapping', authenticateToken, (req: any, res: any) => {
     try {
         return res.json(CODE_MAPPING);
-    } catch {
+    } catch (error) {
+        console.error('Error creating alert:', error);
         return res.status(500).json({
             error: 'Internal server error'
         });
@@ -646,7 +642,9 @@ router.get('/get-results', authenticateToken, async (req: any, res: any) => {
         }));
 
         return res.json(results);
-    } catch {
+    } catch (error) {
+        console.error('Error creating alert:', error);
+
         return res.status(500).json({
             error: 'Internal server error'
         });
@@ -666,7 +664,8 @@ router.put('/update-mapping', authenticateToken, (req: any, res: any) => {
                 error: (error as Error).message
             });
         });
-    } catch {
+    } catch (error) {
+        console.error('Error creating alert:', error);
         return res.status(500).json({
             error: 'Internal server error'
         });
@@ -682,7 +681,9 @@ router.post('/update-results', authenticateToken, (req: any, res: any) => {
                 error: (error as Error).message
             });
         });
-    } catch {
+    } catch (error) {
+        console.error('Error creating alert:', error);
+
         return res.status(500).json({
             error: 'Internal server error'
         });
