@@ -49,22 +49,26 @@ const notificationFreqToCron = (notificationFrequency: number) => {
 
 const startTask = (alert_id: number) => {
     fetch(`https://3aw6qin8ol.execute-api.eu-west-2.amazonaws.com/Prod/update-results/${alert_id}`)
-        .then(async (response) => {
-            let jRes: {success: boolean, message:string} = await response.json();
+    .then((response) => {
+        if (!response.ok) {
+            // Check if the response has content before parsing JSON
+            return response.text().then((text) => {
+                if (text) {
+                    return JSON.parse(text).then((json: { success: boolean; message: string; }) => {
+                        throw new Error(`response not ok, got ${response.status}, message: ${json.message}`);
+                    });
+                } else {
+                    throw new Error(`response not ok, got ${response.status}, no message available`);
+                }
+            });
+        }
+        console.log(`Successfully fetched results for alert ${alert_id}`);
+    })
+    .catch((error) => {
+        console.error(`Error fetching results for alert ${alert_id}:`, error);
+    });
 
-            if (!response.ok) {
-                throw new Error(`response not ok, got ${jRes.message}`);
-            }
-
-            if(jRes.success === false) {
-                throw new Error(`response not successful, got ${jRes.message}`);
-            }
-
-            console.log(`Successfully fetched results for alert ${alert_id}`);
-        })
-        .catch((error) => {
-            console.error('error fetching data,', error);
-        });
+    
 };
 
 if(NODE_ENV === "prod"){
