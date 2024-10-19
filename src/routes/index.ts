@@ -51,15 +51,9 @@ const startTask = (alert_id: number) => {
     fetch(`https://3aw6qin8ol.execute-api.eu-west-2.amazonaws.com/Prod/update-results/${alert_id}`)
     .then((response) => {
         if (!response.ok) {
-            // Check if the response has content before parsing JSON
-            return response.text().then((text) => {
-                if (text) {
-                    return JSON.parse(text).then((json: { success: boolean; message: string; }) => {
-                        throw new Error(`response not ok, got ${response.status}, message: ${json.message}`);
-                    });
-                } else {
-                    throw new Error(`response not ok, got ${response.status}, no message available`);
-                }
+            // get the json response
+            return response.json().then((json: {status: boolean, message: string}) => {
+                throw new Error(json.message);
             });
         }
         console.log(`Successfully fetched results for alert ${alert_id}`);
@@ -68,7 +62,6 @@ const startTask = (alert_id: number) => {
         console.error(`Error fetching results for alert ${alert_id}:`, error);
     });
 
-    
 };
 
 if(NODE_ENV === "prod"){
