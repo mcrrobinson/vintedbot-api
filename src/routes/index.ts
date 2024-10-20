@@ -803,7 +803,9 @@ router.get('/get-results', authenticateToken, async (req: any, res: any) => {
                 results: await Results.findAll({
                     where: {
                         alert_id: alert.id
-                    }
+                    },
+                    order: [['created_at', 'DESC']] // Sort by created_at in descending order
+
                 })
             };
         }));
