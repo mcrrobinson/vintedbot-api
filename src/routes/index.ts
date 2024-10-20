@@ -118,24 +118,6 @@ async function deleteEventBridgeRule(alertId: number) {
     );
 }
 
-
-const notificationFreqToCron = (notificationFrequency: number) => {
-    switch (notificationFrequency) {
-        case 0: // 5 minutes
-            return '*/5 * * * *';
-        case 1: // 10 minutes
-            return '*/10 * * * *';
-        case 2: // 30 minutes
-            return '*/30 * * * *';
-        case 3: // 1 hour
-            return '0 * * * *';
-        case 4: // 1 day
-            return '0 0 * * *';
-        default:
-            throw new Error('Invalid notification frequency');
-    }
-}
-
 async function listAllRules(): Promise<number[]> {
     const eventBridgeClient = new EventBridgeClient({});
     const response = await eventBridgeClient.send(new ListRulesCommand({}));
@@ -619,6 +601,39 @@ const validateNotificationFrequency = (notificationFrequency: number) => {
     return notificationFrequency >= 2 && notificationFrequency <= 4;
 }
 
+const startTask = async (alert_id: number): Promise<void> => {
+    try {
+        const response = await fetch(`https://3aw6qin8ol.execute-api.eu-west-2.amazonaws.com/Prod/update-results/${alert_id}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            // Attempt to parse error response
+            let errorResponse = '';
+            try {
+                const res = await response.json();
+                if (res && res.message) {
+                    errorResponse = res.message;
+                } else {
+                    errorResponse = 'parsed json but no message found';
+                }
+            } catch (parseError) {
+                const errorMessage = (parseError instanceof Error && parseError.message) ? parseError.message : 'An unknown error occurred';
+                errorResponse = 'could not parse error response, ' + errorMessage;
+            }
+            throw new Error(`got status ${response.status}: ${errorResponse}`);
+        }
+
+        console.log(`Successfully fetched results for alert ${alert_id}`);
+    } catch (error) {
+        const errorMessage = (error instanceof Error && error.message) ? error.message : 'An unknown error occurred';
+        console.error(`error fetching results for alert ${alert_id}:`, errorMessage);
+    }
+};
+
 router.post('/create-alert', authenticateToken, async (req: any, res: any) => {
     try {
         const alert: CreateAlert = req.body;
@@ -670,6 +685,9 @@ router.post('/create-alert', authenticateToken, async (req: any, res: any) => {
         }).then(async (alert) => {
 
             try {
+                await startTask(alert.id); // Start the task immediately
+
+                // Now create the schedule
                 await createEventBridgeRuleToSQS(notificatioNFrequencyToMinutes(alert.notification_frequency), alert.id);
 
                 return res.status(200).json({});
