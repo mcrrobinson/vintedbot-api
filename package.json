@@ -11,6 +11,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@aws-sdk/client-eventbridge": "^3.675.0",
+    "@aws-sdk/client-sqs": "^3.675.0",
+    "@aws-sdk/client-sts": "^3.675.0",
     "api": "file:",
     "aws-sdk": "^2.1691.0",
     "bcrypt": "^5.1.1",

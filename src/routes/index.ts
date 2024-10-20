@@ -21,13 +21,102 @@ import {
     getSecretValue
 } from './helper';
 import fs from 'fs';
-const jobManager = require('./jobManager');
-const CODE_MAPPING = JSON.parse(fs.readFileSync('src/mapping.json', 'utf8'));
+import {
+    DeleteRuleCommand,
+    EventBridgeClient,
+    ListRulesCommand,
+    ListTargetsByRuleCommand,
+    PutRuleCommand,
+    PutTargetsCommand,
+    RemoveTargetsCommand,
+} from '@aws-sdk/client-eventbridge';
+
 
 dotenv.config();
 const router = Router();
+const queueArn = "arn:aws:sqs:eu-west-2:224164455438:UpdateResultsQueue"
+const CODE_MAPPING = JSON.parse(fs.readFileSync('src/mapping.json', 'utf8'));
 
-const NODE_ENV = process.env.NODE_ENV;
+async function createEventBridgeRuleToSQS(frequency: number, alertId: number) {
+    const ruleName = `vintedbot-lambda-${alertId}`;
+    const eventBridgeClient = new EventBridgeClient({});
+
+    // Step 2: Create an EventBridge rule that triggers at the specified frequency
+    await eventBridgeClient.send(
+        new PutRuleCommand({
+            Name: ruleName,
+            ScheduleExpression: `rate(${frequency} minutes)`,
+        })
+    );
+
+    // Step 4: Add SQS queue as the target of the EventBridge rule
+    await eventBridgeClient.send(
+        new PutTargetsCommand({
+            Rule: ruleName,
+            Targets: [{
+                Id: 'SqsQueueTarget',
+                Arn: queueArn,
+                Input: JSON.stringify({
+                    alert_id: alertId
+                }),
+            }, ],
+        })
+    );
+
+    console.log('EventBridge rule created successfully.');
+}
+
+const notificatioNFrequencyToMinutes = (notificationFrequency: number) => {
+    switch (notificationFrequency) {
+        case 0: // 5 minutes
+            return 5;
+        case 1: // 10 minutes
+            return 10;
+        case 2: // 30 minutes
+            return 30;
+        case 3: // 1 hour
+            return 60;
+        case 4: // 1 day
+            return 1440;
+        default:
+            throw new Error('Invalid notification frequency');
+    }
+}
+
+async function deleteEventBridgeRule(alertId: number) {
+    const ruleName = `vintedbot-lambda-${alertId}`;
+    const eventBridgeClient = new EventBridgeClient({});
+
+    // Step 1: List the targets for the rule
+    const listTargetsResponse = await eventBridgeClient.send(
+        new ListTargetsByRuleCommand({
+            Rule: ruleName,
+        })
+    );
+
+    if (!listTargetsResponse.Targets) {
+        console.log('No targets found for rule:', ruleName);
+        return;
+    }
+
+    // Step 2: If there are targets, remove them
+    const targetIds = listTargetsResponse.Targets.map(target => target.Id);
+    if (targetIds.length > 0) {
+        await eventBridgeClient.send(
+            new RemoveTargetsCommand({
+                Rule: ruleName,
+                Ids: targetIds as string[],
+            })
+        );
+    }
+
+    // Step 3: Now delete the rule
+    await eventBridgeClient.send(
+        new DeleteRuleCommand({
+            Name: ruleName,
+        })
+    );
+}
 
 
 const notificationFreqToCron = (notificationFrequency: number) => {
@@ -47,49 +136,77 @@ const notificationFreqToCron = (notificationFrequency: number) => {
     }
 }
 
-const startTask = async (alert_id: number): Promise<void> => {
-    try {
-        const response = await fetch(`https://3aw6qin8ol.execute-api.eu-west-2.amazonaws.com/Prod/update-results/${alert_id}`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            signal: AbortSignal.timeout(30000) // 30 seconds
-        });
+async function listAllRules(): Promise<number[]> {
+    const eventBridgeClient = new EventBridgeClient({});
+    const response = await eventBridgeClient.send(new ListRulesCommand({}));
+    const ids: number[] = [];
 
-        if (!response.ok) {
-            // Attempt to parse error response
-            let errorResponse = '';
-            try {
-                errorResponse = await response.text();
-            } catch (parseError) {
-                const errorMessage = (parseError instanceof Error && parseError.message) ? parseError.message : 'An unknown error occurred';
-                errorResponse = 'could not parse error response, ' + errorMessage;
-            }
-            throw new Error(`got status ${response.status}: ${errorResponse}`);
-        }
-
-        console.log(`Successfully fetched results for alert ${alert_id}`);
-    } catch (error) {
-        const errorMessage = (error instanceof Error && error.message) ? error.message : 'An unknown error occurred';
-        console.error(`error fetching results for alert ${alert_id}:`, errorMessage);
+    if (response.Rules === undefined) {
+      throw new Error(`response.Rules is undefined, response must be malformed`);
     }
-};
 
+    for (const rule of response.Rules) {
+      if(!rule.Name){
+        throw new Error(`rule with no name was returned, response must be malformed`);
+      }
 
-if(NODE_ENV === "prod"){
-    Alerts.findAll().then((alerts) => {
-        for (const result of alerts) {
-            jobManager.scheduleJob(result.id, notificationFreqToCron(result.notification_frequency), async () => await startTask(result.id));
-        }
-    }).catch((error) => {
-        const errorMessage = (error instanceof Error && error.message) ? error.message : 'An unknown error occurred';
-        console.error(`error scheduling alert for alerts:`, errorMessage);
-    });
+      if(!rule.Name.includes('vintedbot-lambda')){
+        continue;
+      }
+
+      // Get ID from name
+      const splitName = rule.Name.split('-');
+      if (splitName.length < 3) {
+        throw new Error(`rule name wasn't able to be split, ${rule.Name}`);
+      }
+
+      const id = splitName[2];
+
+      // If can't parse ID as int then throw
+      let idInt = parseInt(id);
+      if (isNaN(idInt)) {
+        throw new Error(`rule id wasn't able to be converted to a number, ${id}`);
+      }
+
+      ids.push(idInt);
+    }
+
+    return ids;
 }
+
+function delay(ms: number) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 
 // Middleware
 router.use(express.json());
+
+(async () => {
+    const alerts = await Alerts.findAll();
+
+    const ruleIds = await listAllRules();
+    const alertIds = alerts.map(alert => alert.id);
+
+    // Check to see if there are any alerts that don't have a rule
+    for (const alert of alerts) {
+        if (!ruleIds.includes(alert.id)) {
+            console.log(`Creating rule for alert ${alert.id}`);
+            await createEventBridgeRuleToSQS(notificatioNFrequencyToMinutes(alert.notification_frequency), alert.id);
+            
+            // Stagger the rule creation to avoid rate limiting
+            await delay(1000);
+        }
+    }
+
+    // Check for rules that don't have an alert
+    for (const id of ruleIds) {
+        if (!alertIds.includes(id)) {
+            console.log(`Deleting rule for alert ${id}`);
+            await deleteEventBridgeRule(id);
+        }
+    }
+})();
 
 
 router.post('/password-update', authenticateToken, async (req: any, res: any) => {
@@ -553,22 +670,23 @@ router.post('/create-alert', authenticateToken, async (req: any, res: any) => {
         }).then(async (alert) => {
 
             try {
-                // Start task first
-                await startTask(alert.id);
-        
-                // Then create the job
-                jobManager.scheduleJob(alert.id, notificationFreqToCron(alert.notification_frequency), async () => await startTask(alert.id));
+                await createEventBridgeRuleToSQS(notificatioNFrequencyToMinutes(alert.notification_frequency), alert.id);
+
                 return res.status(200).json({});
-        
+
             } catch (error) {
                 console.error('Error creating alert job:', error);
-                await Alerts.destroy({where: {id: alert.id}});
+                await Alerts.destroy({
+                    where: {
+                        id: alert.id
+                    }
+                });
 
                 return res.status(500).json({
                     error: (error as Error).message
                 });
             }
-        
+
         }).catch((error) => {
             console.error('Error adding alert to database:', error);
             return res.status(400).json({
@@ -585,26 +703,38 @@ router.post('/create-alert', authenticateToken, async (req: any, res: any) => {
 
 router.delete('/delete-alert', authenticateToken, (req: any, res: any) => {
     try {
+        let idInt = parseInt(req.body.id);
         Alerts.destroy({
-            where: {
-                id: req.body.id,
-                user_id: req.user.id
-            }
-        }).then(() => {
-            jobManager.cancelJob(req.body.id);
-            return res.status(200).json({});
-        }).catch((error) => {
-            return res.status(500).json({
-                error: (error as Error).message
+                where: {
+                    id: idInt,
+                    user_id: req.user.id
+                }
+            })
+            .then(() => {
+                deleteEventBridgeRule(idInt)
+                    .then(() => {
+                        return res.status(200).json({});
+                    })
+                    .catch((error) => {
+                        console.error('Error deleting EventBridge rule:', error);
+                        return res.status(500).json({
+                            error: 'Failed to delete EventBridge rule'
+                        });
+                    });
+            })
+            .catch((error) => {
+                return res.status(500).json({
+                    error: (error as Error).message
+                });
             });
-        });
     } catch (error) {
-        console.error('Error creating alert:', error);
+        console.error('Error deleting alert:', error);
         return res.status(500).json({
             error: 'Internal server error'
         });
     }
 });
+
 
 router.get('/get-alerts', authenticateToken, (req: any, res: any) => {
     try {
