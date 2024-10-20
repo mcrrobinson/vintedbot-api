@@ -56,15 +56,26 @@ const startTask = async (alert_id: number): Promise<void> => {
             },
             signal: AbortSignal.timeout(30000) // 30 seconds
         });
+
         if (!response.ok) {
-            throw new Error(`got status ${response.status}`);
+            // Attempt to parse error response
+            let errorResponse = '';
+            try {
+                errorResponse = await response.text();
+            } catch (parseError) {
+                const errorMessage = (parseError instanceof Error && parseError.message) ? parseError.message : 'An unknown error occurred';
+                errorResponse = 'could not parse error response, ' + errorMessage;
+            }
+            throw new Error(`got status ${response.status}: ${errorResponse}`);
         }
+
         console.log(`Successfully fetched results for alert ${alert_id}`);
     } catch (error) {
         const errorMessage = (error instanceof Error && error.message) ? error.message : 'An unknown error occurred';
         console.error(`error fetching results for alert ${alert_id}:`, errorMessage);
     }
 };
+
 
 if(NODE_ENV === "prod"){
     Alerts.findAll().then((alerts) => {
