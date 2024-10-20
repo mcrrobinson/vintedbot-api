@@ -49,7 +49,13 @@ const notificationFreqToCron = (notificationFrequency: number) => {
 
 const startTask = async (alert_id: number): Promise<void> => {
     try {
-        const response = await fetch(`https://3aw6qin8ol.execute-api.eu-west-2.amazonaws.com/Prod/update-results/${alert_id}`);
+        const response = await fetch(`https://3aw6qin8ol.execute-api.eu-west-2.amazonaws.com/Prod/update-results/${alert_id}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            signal: AbortSignal.timeout(30000) // 30 seconds
+        });
         if (!response.ok) {
             throw new Error(`got status ${response.status}`);
         }
