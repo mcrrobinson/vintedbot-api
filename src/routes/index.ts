@@ -393,7 +393,8 @@ router.post('/register', async (req: any, res: any) => {
             password,
             created_at: new Date(),
             admin: false,
-            verified: false
+            verified: false,
+            last_active: new Date()
         });
         const emailToken = await generateEmailToken(email);
 
@@ -530,6 +531,9 @@ router.post('/token', async (req: any, res: any) => {
 
         // Generate new access token
         const accessToken = await generateAccessToken(user.id, user.email);
+
+        user.last_active = new Date();
+        await user.save();
 
         return res.json({
             accessToken

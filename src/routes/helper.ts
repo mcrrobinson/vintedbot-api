@@ -82,6 +82,7 @@ async function authenticateToken(req: any, res: any, next: any) {
 
         // Otherwise tell the client the token is invalid, log them out.
         if (err) return res.status(403).json({});
+
         req.user = user;
         next();
     });
