@@ -394,7 +394,8 @@ router.post('/register', async (req: any, res: any) => {
             created_at: new Date(),
             admin: false,
             verified: false,
-            last_active: new Date()
+            last_active: new Date(),
+            role: 'user'
         });
         const emailToken = await generateEmailToken(email);
 
@@ -654,12 +655,36 @@ router.post('/create-alert', authenticateToken, async (req: any, res: any) => {
         const user = await getUserFromAccessToken(accessToken);
         if (!user) return res.status(403).json({});
 
+        // Query the users table to get the user's role
+        const userDetails = await User.findOne({
+            where: {
+                id: user.id
+            }
+        });
+
+        if (!userDetails) {
+            return res.status(404).json({
+                error: 'User not found'
+            });
+        }
+
+        let maxAlerts;
+        if (userDetails.role === 'user' || userDetails.role === null) {
+            maxAlerts = 5;
+        } else if (userDetails.role === 'paid') {
+            maxAlerts = 30;
+        } else {
+            return res.status(400).json({
+                error: 'Invalid user role'
+            });
+        }
+
         const alertCount = await Alerts.count({
             where: {
                 user_id: user.id
             }
         });
-        if (alertCount >= 5) return res.status(400).json({
+        if (alertCount >= maxAlerts) return res.status(400).json({
             error: 'Too many alerts'
         });
 
