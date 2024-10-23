@@ -684,9 +684,11 @@ router.post('/create-alert', authenticateToken, async (req: any, res: any) => {
                 user_id: user.id
             }
         });
-        if (alertCount >= maxAlerts) return res.status(400).json({
-            error: 'Too many alerts'
-        });
+        if (alertCount >= maxAlerts) {
+            return res.status(400).json({
+                error: `Maximum number of alerts (${maxAlerts}) reached`
+            });
+        }
 
         console.log(`Creating alert (${alert.name}) for user ${user.id}`);
 
