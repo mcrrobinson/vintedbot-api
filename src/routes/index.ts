@@ -670,7 +670,7 @@ router.post('/create-alert', authenticateToken, async (req: any, res: any) => {
 
         let maxAlerts;
         if (userDetails.role === 'user' || userDetails.role === null) {
-            maxAlerts = 5;
+            maxAlerts = 6;
         } else if (userDetails.role === 'paid') {
             maxAlerts = 30;
         } else {
