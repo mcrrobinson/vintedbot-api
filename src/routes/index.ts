@@ -25,6 +25,7 @@ import {
     DeleteRuleCommand,
     EventBridgeClient,
     ListRulesCommand,
+    ListRulesCommandOutput,
     ListTargetsByRuleCommand,
     PutRuleCommand,
     PutTargetsCommand,
@@ -120,14 +121,27 @@ async function deleteEventBridgeRule(alertId: number) {
 
 async function listAllRules(): Promise<number[]> {
     const eventBridgeClient = new EventBridgeClient({});
-    const response = await eventBridgeClient.send(new ListRulesCommand({}));
+
+    const rules = [];
+    let nextToken;
+
+    do {
+        const response: ListRulesCommandOutput = await eventBridgeClient.send(
+            new ListRulesCommand({
+                NextToken: nextToken,
+            })
+        );
+        if (!response.Rules) {
+            console.log('No rules found');
+            return [];
+        }
+
+        rules.push(...response.Rules);
+        nextToken = response.NextToken;
+    } while (nextToken);
     const ids: number[] = [];
 
-    if (response.Rules === undefined) {
-      throw new Error(`response.Rules is undefined, response must be malformed`);
-    }
-
-    for (const rule of response.Rules) {
+    for (const rule of rules) {
       if(!rule.Name){
         throw new Error(`rule with no name was returned, response must be malformed`);
       }
@@ -169,7 +183,6 @@ router.use(express.json());
 
     const ruleIds = await listAllRules();
     const alertIds = alerts.map(alert => alert.id);
-
     // Check to see if there are any alerts that don't have a rule
     for (const alert of alerts) {
         if (!ruleIds.includes(alert.id)) {
