@@ -1,61 +1,61 @@
-name: Docker Build and Push
+# name: Docker Build and Push
 
-on:
-  push:
-    branches:
-      - main # Set this to the branch you want to trigger the build.
+# on:
+#   push:
+#     branches:
+#       - main # Set this to the branch you want to trigger the build.
 
-env:
-  AWS_REGION: eu-west-2
-  ECR_REPOSITORY: vinted-bot/api
-  ECS_SERVICE: vinted-bot-api-ECSService-V0Oc1E3c0Yql
-  ECS_CLUSTER: VintedCluster
-  ECS_TASK_DEFINITION: .github/workflows/task-definition.json
-  CONTAINER_NAME: vinted-bot-api
-  AWS_ACCOUNT_ID: 224164455438
-  IMAGE_URI: '224164455438.dkr.ecr.eu-west-2.amazonaws.com/vinted-bot/api:latest'
+# env:
+#   AWS_REGION: eu-west-2
+#   ECR_REPOSITORY: vinted-bot/api
+#   ECS_SERVICE: vinted-bot-api-ECSService-V0Oc1E3c0Yql
+#   ECS_CLUSTER: VintedCluster
+#   ECS_TASK_DEFINITION: .github/workflows/task-definition.json
+#   CONTAINER_NAME: vinted-bot-api
+#   AWS_ACCOUNT_ID: 224164455438
+#   IMAGE_URI: '224164455438.dkr.ecr.eu-west-2.amazonaws.com/vinted-bot/api:latest'
 
-jobs:
-  build-and-push:
-    permissions:
-      id-token: write
-      contents: read
+# jobs:
+#   build-and-push:
+#     permissions:
+#       id-token: write
+#       contents: read
 
-    runs-on: ubuntu-latest
+#     runs-on: ubuntu-latest
 
-    steps:
-      - name: Get the current date
-        id: vars
-        run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+#     steps:
+#       - name: Get the current date
+#         id: vars
+#         run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
 
-      - uses: actions/checkout@v2
+#       - uses: actions/checkout@v2
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+#       - name: Set up Docker Buildx
+#         uses: docker/setup-buildx-action@v1
 
-      # Login to AWS
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@master
-        with:
-          role-to-assume: arn:aws:iam::224164455438:role/Github
-          role-session-name: Github
-          aws-region: ${{env.AWS_REGION}}
-          mask-aws-account-id: 'false'
+#       # Login to AWS
+#       - name: Configure AWS credentials
+#         uses: aws-actions/configure-aws-credentials@master
+#         with:
+#           role-to-assume: arn:aws:iam::224164455438:role/Github
+#           role-session-name: Github
+#           aws-region: ${{env.AWS_REGION}}
+#           mask-aws-account-id: 'false'
 
-      # Login to Amazon ECR
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-        with:
-          mask-password: 'false'
+#       # Login to Amazon ECR
+#       - name: Login to Amazon ECR
+#         id: login-ecr
+#         uses: aws-actions/amazon-ecr-login@v2
+#         with:
+#           mask-password: 'false'
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          tags: ${{env.IMAGE_URI}}
+#       - name: Build and push Docker image
+#         uses: docker/build-push-action@v6
+#         with:
+#           context: .
+#           file: ./Dockerfile
+#           push: true
+#           tags: ${{env.IMAGE_URI}}
 
-      - name: Force new ECS deployment
-        run: aws ecs update-service --cluster ${{ env.ECS_CLUSTER }} --service ${{ env.ECS_SERVICE }} --force-new-deployment
+#       - name: Force new ECS deployment
+#         run: aws ecs update-service --cluster ${{ env.ECS_CLUSTER }} --service ${{ env.ECS_SERVICE }} --force-new-deployment

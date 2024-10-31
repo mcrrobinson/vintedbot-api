@@ -1,66 +1,32 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Resources:
 
-  # Create a Log Group for ECS Task Logging
-  ECSLogGroup:
+  EC2LogGroup:
     Type: 'AWS::Logs::LogGroup'
     Properties:
-      LogGroupName: '/ecs/vinted-bot-api'
-      RetentionInDays: 30
+      LogGroupName: '/ec2/vinted-bot-api'
+      RetentionInDays: 7
 
-  # Use Existing Security Group or Create a New One for ECS tasks
-  ECSSecurityGroup:
+  # Use Existing Security Group or Create a New One for EC2 instances
+  EC2SecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
-      GroupDescription: 'Allow access to ECS tasks'
+      GroupDescription: 'Allow access to EC2 instances'
       VpcId: 'vpc-0f3307da2b3567f42'
       SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: '0.0.0.0/0'
-        - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
-          CidrIp: '0.0.0.0/0'
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: '193.180.91.6/32'  # Replace with your IP for secure access
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        SourceSecurityGroupId: !Ref ALBSecurityGroup
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: '0.0.0.0/0'  # Allow outbound traffic
 
-  # Create an ECS Cluster
-  ECSCluster:
-    Type: 'AWS::ECS::Cluster'
-    Properties:
-      ClusterName: 'VintedCluster'
-
-  # Create ECS Task Definition for Fargate
-  ECSTaskDefinition:
-    Type: 'AWS::ECS::TaskDefinition'
-    Properties:
-      Family: 'vinted-bot-api'
-      NetworkMode: 'awsvpc'
-      RequiresCompatibilities:
-        - FARGATE
-      Cpu: '1024'
-      Memory: '2048'
-      ExecutionRoleArn: 'arn:aws:iam::224164455438:role/ecsTaskExecutionRole'
-      TaskRoleArn: 'arn:aws:iam::224164455438:role/ecsTaskExecutionRole'
-      MinimumHealthyPercent: 100
-      MaximumPercent: 200
-      ContainerDefinitions:
-        - Name: 'vinted-bot-api'
-          Image: '224164455438.dkr.ecr.eu-west-2.amazonaws.com/vinted-bot/api'
-          Cpu: 512
-          Memory: 1024
-          PortMappings:
-            - ContainerPort: 80
-              Protocol: tcp
-          Essential: true
-          LogConfiguration:
-            LogDriver: 'awslogs'
-            Options:
-              awslogs-group: !Ref ECSLogGroup
-              awslogs-region: 'eu-west-2'
-              awslogs-stream-prefix: 'ecs'
-
-  # Create an ALB Security Group
+  # ALB Security Group remains the same
   ALBSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
@@ -89,7 +55,7 @@ Resources:
       SecurityGroups:
         - !Ref ALBSecurityGroup
 
-  # Create a Target Group for the ALB
+  # Modify Target Group to use 'instance' TargetType
   TargetGroup:
     Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
     Properties:
@@ -97,14 +63,14 @@ Resources:
       VpcId: 'vpc-0f3307da2b3567f42'
       Protocol: 'HTTP'
       Port: 80
-      TargetType: 'ip'
+      TargetType: 'instance'  # Changed from 'ip' to 'instance'
       HealthCheckEnabled: true
       HealthCheckPath: '/'
       HealthCheckIntervalSeconds: 30
       HealthyThresholdCount: 3
       UnhealthyThresholdCount: 3
 
-  # ALB Listener for HTTPS
+  # ALB Listener for HTTPS remains the same
   HTTPSListener:
     Type: 'AWS::ElasticLoadBalancingV2::Listener'
     Properties:
@@ -118,28 +84,97 @@ Resources:
       Certificates:
         - CertificateArn: 'arn:aws:acm:eu-west-2:224164455438:certificate/ba596a09-f950-4e72-bd3c-be934ef92ca9'
 
-  # Create an ECS Service for Fargate
-  ECSService:
-    Type: 'AWS::ECS::Service'
+  EC2InstanceProfile:
+    Type: 'AWS::IAM::InstanceProfile'
     Properties:
-      Cluster: !Ref ECSCluster
-      DesiredCount: 1
-      LaunchType: FARGATE
-      TaskDefinition: !Ref ECSTaskDefinition
-      NetworkConfiguration:
-        AwsvpcConfiguration:
-          AssignPublicIp: ENABLED
-          SecurityGroups:
-            - !Ref ECSSecurityGroup
-          Subnets:
-            - 'subnet-031d8cdd6228919df'
-            - 'subnet-03a6abaeb06bf6d0f'
-            - 'subnet-0478b3c319ccbbca6'
-      LoadBalancers:
-        - ContainerName: 'vinted-bot-api'
-          ContainerPort: 80
-          TargetGroupArn: !Ref TargetGroup
-    DependsOn:
-      - HTTPSListener
-      - TargetGroup
-      - LoadBalancer
+      Roles:
+        - 'ecsTaskExecutionRole' 
+
+  # Create a Launch Template for EC2 instances
+  LaunchTemplate:
+    Type: 'AWS::EC2::LaunchTemplate'
+    Properties:
+      LaunchTemplateName: 'VintedLaunchTemplate'
+      LaunchTemplateData:
+        KeyName: 'vinted-bot-api' 
+        InstanceType: 't4g.micro'
+        ImageId: 'ami-0683ac74b28130646'
+        SecurityGroupIds:
+          - !Ref EC2SecurityGroup
+        IamInstanceProfile:
+          Name: !Ref EC2InstanceProfile
+        UserData:
+          'Fn::Base64': !Sub |
+            #!/bin/bash
+            yum update -y
+            yum install -y awslogs
+            # Configure CloudWatch Logs
+            echo "
+            [general]
+            state_file = /var/awslogs/state/agent-state
+
+            [/var/log/messages]
+            log_group_name = /ec2/vinted-bot-api
+            log_stream_name = {instance_id}/messages
+            file = /var/log/messages
+
+            [/var/log/app.log]
+            log_group_name = /ec2/vinted-bot-api
+            log_stream_name = {instance_id}/app
+            file = /home/ec2-user/app.log
+            " > /etc/awslogs/awslogs.conf
+
+            # Start CloudWatch Logs agent
+            systemctl start awslogsd
+            systemctl enable awslogsd
+
+            curl -sL https://rpm.nodesource.com/setup_current.x | bash -
+            yum install -y nodejs git
+            git clone https://github.com/mcrrobinson/vintedbot-api.git
+            cd vintedbot-api
+            npm install
+            AWS_REGION=eu-west-2 node src/app.js > /home/ec2-user/app.log 2>&1 &
+            
+
+  # Create an Auto Scaling Group to manage EC2 instances
+  AutoScalingGroup:
+    Type: 'AWS::AutoScaling::AutoScalingGroup'
+    Properties:
+      VPCZoneIdentifier:
+        - 'subnet-031d8cdd6228919df'
+        - 'subnet-03a6abaeb06bf6d0f'
+        - 'subnet-0478b3c319ccbbca6'
+      LaunchTemplate:
+        LaunchTemplateId: !Ref LaunchTemplate
+        Version: !GetAtt LaunchTemplate.LatestVersionNumber
+      MinSize: '1'
+      MaxSize: '3'
+      DesiredCapacity: '1'
+      TargetGroupARNs:
+        - !Ref TargetGroup
+
+  NotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      Subscription:
+        - Endpoint: 'mrmcrrobinson@gmail.com'
+          Protocol: 'email'
+
+  # Update CloudWatch Alarm to monitor EC2 instance health
+  EC2UnhealthyAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: 'EC2UnhealthyAlarm'
+      AlarmDescription: 'Alarm when EC2 instances are unhealthy'
+      Namespace: 'AWS/EC2'
+      MetricName: 'StatusCheckFailed_Instance'
+      Dimensions:
+        - Name: 'AutoScalingGroupName'
+          Value: !Ref AutoScalingGroup
+      Statistic: 'Average'
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: 'GreaterThanOrEqualToThreshold'
+      AlarmActions:
+        - !Ref NotificationTopic
