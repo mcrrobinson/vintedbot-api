@@ -27,6 +27,7 @@ interface IdeaAttributes {
     condition_friendly: string[];
     last_executed: Date | null;
     results: number[];
+    image_url: string;
 }
 
 interface UserCreationAttributes extends Optional<IdeaAttributes, 'id'> { }
@@ -52,6 +53,7 @@ class Ideas extends Model<IdeaAttributes, UserCreationAttributes> implements Ide
     public condition_friendly!: string[];
     public last_executed!: Date | null;
     public results!: number[];
+    public image_url!: string;
 }
 
 Ideas.init({
@@ -135,6 +137,10 @@ Ideas.init({
     },
     results: {
         type: DataTypes.ARRAY(DataTypes.INTEGER),
+        allowNull: false
+    },
+    image_url: {
+        type: DataTypes.STRING,
         allowNull: false
     }
 }, {
