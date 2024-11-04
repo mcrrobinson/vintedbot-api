@@ -31,6 +31,7 @@ import {
     PutTargetsCommand,
     RemoveTargetsCommand,
 } from '@aws-sdk/client-eventbridge';
+import Ideas from '../models/ideas.model';
 
 
 dotenv.config();
@@ -897,6 +898,24 @@ router.post('/update-results', authenticateToken, (req: any, res: any) => {
     } catch (error) {
         console.error('Error creating alert:', error);
 
+        return res.status(500).json({
+            error: 'Internal server error'
+        });
+    }
+});
+
+router.get('/get-ideas', authenticateToken, (req: any, res: any) => {
+    try {
+        Ideas.findAll().then((ideas) => {
+            return res.json(ideas);
+        }
+        ).catch((error) => {
+            return res.status(500).json({
+                error: (error as Error).message
+            });
+        });
+    } catch (error) {
+        console.error('Error creating alert:', error);
         return res.status(500).json({
             error: 'Internal server error'
         });
