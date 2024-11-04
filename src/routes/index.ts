@@ -904,7 +904,7 @@ router.post('/update-results', authenticateToken, (req: any, res: any) => {
     }
 });
 
-router.get('/get-ideas', authenticateToken, (req: any, res: any) => {
+router.get('/get-ideas', (req: any, res: any) => {
     try {
         Ideas.findAll().then((ideas) => {
             return res.json(ideas);
